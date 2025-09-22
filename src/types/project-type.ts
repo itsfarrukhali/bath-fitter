@@ -1,3 +1,5 @@
+import { ShowerType } from "./shower-types";
+
 // types/project-type.ts
 export interface ProjectType {
   id: number;
@@ -8,7 +10,7 @@ export interface ProjectType {
   _count: {
     showerTypes: number;
   };
-  showerTypes?: any[]; // We can define a more specific type if needed
+  showerTypes?: ShowerType[]; // We can define a more specific type if needed
 }
 
 export interface ProjectTypeCreateData {

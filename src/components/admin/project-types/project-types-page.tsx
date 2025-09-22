@@ -26,6 +26,7 @@ import type {
 import CreateProjectTypeModal from "./create-project-type-modal";
 import EditProjectTypeModal from "./edit-project-type-modal";
 import DeleteProjectTypeModal from "./delete-project-type-modal";
+import { ShowerType } from "@/types/shower-types";
 
 export default function ProjectTypesPage() {
   const [projectTypes, setProjectTypes] = useState<ProjectType[]>([]);
@@ -188,7 +189,7 @@ export default function ProjectTypesPage() {
                       <div className="mt-2 space-y-1">
                         {projectType.showerTypes
                           .slice(0, 3)
-                          .map((showerType: any) => (
+                          .map((showerType: ShowerType) => (
                             <div
                               key={showerType.id}
                               className="flex items-center justify-between text-xs p-1 bg-muted/30 rounded"

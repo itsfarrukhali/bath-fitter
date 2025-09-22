@@ -1,3 +1,5 @@
+import { Category } from "./category";
+
 // types/shower-type.ts
 export interface ProjectType {
   id: number;
@@ -16,7 +18,7 @@ export interface ShowerType {
     categories: number;
     UserDesign: number;
   };
-  categories: any[]; // We can define a more specific type if needed
+  categories: Category[]; // We can define a more specific type if needed
 }
 
 export interface ShowerTypeCreateData {

@@ -1,6 +1,6 @@
 "use client";
 
-import { Bath, Droplets, FolderOpen, ArrowRight } from "lucide-react";
+import { Droplets, FolderOpen, ArrowRight } from "lucide-react";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import Image from "next/image";

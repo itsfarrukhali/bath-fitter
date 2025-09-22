@@ -3,7 +3,7 @@
 
 import { useEffect, useState } from "react";
 import axios, { AxiosError } from "axios";
-import { Pencil, Trash2, Folder, FolderTree, Package } from "lucide-react";
+import { Folder, FolderTree, Package } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";

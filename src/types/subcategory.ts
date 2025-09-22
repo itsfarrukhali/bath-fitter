@@ -1,3 +1,5 @@
+import { Product } from "./category";
+
 // types/subcategory.ts
 export interface Category {
   id: number;
@@ -16,7 +18,7 @@ export interface Subcategory {
   _count: {
     products: number;
   };
-  products?: any[]; // We can define a more specific type if needed
+  products?: Product[]; // We can define a more specific type if needed
 }
 
 export interface SubcategoryCreateData {

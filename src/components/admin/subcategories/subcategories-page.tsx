@@ -23,6 +23,7 @@ import type { Subcategory, SubcategoryListResponse } from "@/types/subcategory";
 import CreateSubcategoryModal from "./create-subcategory-modal";
 import EditSubcategoryModal from "./edit-subcategory-modal";
 import DeleteSubcategoryModal from "./delete-subcategory-modal";
+import { Product } from "@/types/category";
 
 export default function SubcategoriesPage() {
   const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
@@ -189,17 +190,19 @@ export default function SubcategoriesPage() {
 
                 {subcategory.products && subcategory.products.length > 0 && (
                   <div className="mt-2 space-y-1">
-                    {subcategory.products.slice(0, 3).map((product: any) => (
-                      <div
-                        key={product.id}
-                        className="flex items-center justify-between text-xs p-1 bg-muted/30 rounded"
-                      >
-                        <span>{product.name}</span>
-                        <Badge variant="secondary">
-                          {product._count?.variants || 0} variants
-                        </Badge>
-                      </div>
-                    ))}
+                    {subcategory.products
+                      .slice(0, 3)
+                      .map((product: Product) => (
+                        <div
+                          key={product.id}
+                          className="flex items-center justify-between text-xs p-1 bg-muted/30 rounded"
+                        >
+                          <span>{product.name}</span>
+                          <Badge variant="secondary">
+                            {product._count?.variants || 0} variants
+                          </Badge>
+                        </div>
+                      ))}
                     {subcategory.products.length > 3 && (
                       <div className="text-xs text-muted-foreground text-center mt-1">
                         +{subcategory.products.length - 3} more products

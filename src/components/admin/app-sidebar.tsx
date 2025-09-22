@@ -18,10 +18,9 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from "@/components/ui/sidebar";
-import { signOut, useSession } from "next-auth/react";
+import { signOut } from "next-auth/react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import Image from "next/image";
 import { Button } from "../ui/button";
 
 // Nav config with lucide icons
@@ -37,8 +36,6 @@ const adminNav = [
 export function AdminAppSidebar({
   ...props
 }: React.ComponentProps<typeof Sidebar>) {
-  const { data: session } = useSession();
-  const user = session?.user;
   const pathname = usePathname();
 
   // Function to check active state
