@@ -1,0 +1,115 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          String    @id @default(uuid())
+  fullName    String
+  email       String    @unique
+  phoneNumber String
+  postalCode  String
+  projects    Project[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Admin {
+  id        String   @id @default(uuid())
+  fullName  String
+  email     String   @unique
+  username  String   @unique
+  password  String // hashed (bcrypt)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Project {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  name       String // Project name given by user
+  selections Json // JSON storing selections (wall=Padova White, base=Base1, etc.)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model ProjectType {
+  id          Int          @id @default(autoincrement())
+  name        String // Shower, Bath, etc.
+  slug        String       @unique
+  showerTypes ShowerType[]
+}
+
+model ShowerType {
+  id            Int         @id @default(autoincrement())
+  name          String // Tub to Shower, Curved, etc.
+  slug          String      @unique
+  projectType   ProjectType @relation(fields: [projectTypeId], references: [id])
+  projectTypeId Int
+  categories    Category[]
+  baseImage     String? // Default base image URL
+
+  UserDesign UserDesign[]
+}
+
+model Category {
+  id               Int           @id @default(autoincrement())
+  name             String
+  slug             String
+  hasSubcategories Boolean       @default(false)
+  showerType       ShowerType    @relation(fields: [showerTypeId], references: [id])
+  showerTypeId     Int
+  subcategories    Subcategory[]
+  products         Product[]
+}
+
+model Subcategory {
+  id         Int       @id @default(autoincrement())
+  name       String
+  slug       String
+  category   Category  @relation(fields: [categoryId], references: [id])
+  categoryId Int
+  products   Product[]
+}
+
+model Product {
+  id            Int              @id @default(autoincrement())
+  name          String // Base 1, Genova, etc.
+  category      Category         @relation(fields: [categoryId], references: [id])
+  categoryId    Int
+  subcategory   Subcategory?     @relation(fields: [subcategoryId], references: [id])
+  subcategoryId Int?
+  variants      ProductVariant[]
+}
+
+model ProductVariant {
+  id        Int     @id @default(autoincrement())
+  colorName String
+  colorCode String? // Hex code for UI
+  imageUrl  String // Cloudinary URL
+  product   Product @relation(fields: [productId], references: [id])
+  productId Int
+}
+
+model UserDesign {
+  id             Int        @id @default(autoincrement())
+  userFullName   String?
+  userEmail      String?
+  userPhone      String?
+  userPostalCode String?
+  designData     Json // Stores all selected options
+  showerType     ShowerType @relation(fields: [showerTypeId], references: [id])
+  showerTypeId   Int
+  createdAt      DateTime   @default(now())
+}
