@@ -60,6 +60,7 @@ export interface CategoryResponse {
 export interface CategoryCreateData {
   name: string;
   slug: string;
+  templateId: number;
   hasSubcategories: boolean;
   showerTypeId: number;
 }

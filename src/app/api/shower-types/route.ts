@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
           _count: {
             select: {
               categories: true,
-              UserDesign: true,
+              userDesigns: true,
             },
           },
         },
@@ -148,7 +148,7 @@ export async function POST(request: NextRequest) {
         _count: {
           select: {
             categories: true,
-            UserDesign: true,
+            userDesigns: true,
           },
         },
       },

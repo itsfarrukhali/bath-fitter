@@ -13,6 +13,7 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
+import ThemeSwitcher from "@/components/ThemeSwitcher";
 
 export default function Page({ children }: { children: React.ReactNode }) {
   return (
@@ -35,7 +36,11 @@ export default function Page({ children }: { children: React.ReactNode }) {
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>
+          <div className="ml-auto">
+            <ThemeSwitcher />
+          </div>
         </header>
+        {children}
       </SidebarInset>
     </SidebarProvider>
   );

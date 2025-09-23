@@ -3,6 +3,7 @@ import * as React from "react";
 import {
   Folder,
   FolderTree,
+  LayoutTemplate,
   LogOut,
   Network,
   Package,
@@ -22,11 +23,14 @@ import { signOut } from "next-auth/react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { Button } from "../ui/button";
+import Image from "next/image";
+import { useTheme } from "next-themes";
 
 // Nav config with lucide icons
 const adminNav = [
   { title: "Project Types", url: "/admin/project-types", icon: Network },
   { title: "Shower Types", url: "/admin/shower-types", icon: ShowerHead },
+  { title: "Templates", url: "/admin/templates", icon: LayoutTemplate },
   { title: "Categories", url: "/admin/categories", icon: Folder },
   { title: "Subcategories", url: "/admin/subcategories", icon: FolderTree },
   { title: "Assets", url: "/admin/assets", icon: Package },
@@ -37,12 +41,19 @@ export function AdminAppSidebar({
   ...props
 }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname();
+  const { theme } = useTheme();
 
   // Function to check active state
   const isItemActive = (url: string) => {
     if (url === "/") return pathname === "/";
     return pathname?.startsWith(url);
   };
+
+  // Determine logo based on theme
+  const logoSrc =
+    theme === "dark"
+      ? "/home-care-logo-black.jpg"
+      : "/home-care-logo-white.jpg";
 
   const handleLogout = () => {
     signOut({ callbackUrl: "/login" });
@@ -56,12 +67,13 @@ export function AdminAppSidebar({
             <SidebarMenuButton size="lg" asChild>
               <Link href={"/"} className="flex items-center">
                 <div className="flex items-center space-x-2">
-                  <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
-                    <span className="text-white font-bold text-lg">BF</span>
-                  </div>
-                  <span className="text-2xl font-bold text-gray-900">
-                    Bath Fitter
-                  </span>
+                  <Image
+                    src={logoSrc}
+                    alt="Home Care"
+                    width={100}
+                    height={100}
+                    className="mr-3"
+                  />
                 </div>
               </Link>
             </SidebarMenuButton>

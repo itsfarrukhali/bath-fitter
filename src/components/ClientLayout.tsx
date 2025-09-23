@@ -2,7 +2,6 @@
 
 import { usePathname } from "next/navigation";
 import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
 
 interface ClientLayoutProps {
   children: React.ReactNode;
@@ -19,7 +18,8 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
     pathname.startsWith("/admin/assets") ||
     pathname.startsWith("/admin/color-variants") ||
     pathname.startsWith("/admin/shower-types") ||
-    pathname.startsWith("/admin/project-types");
+    pathname.startsWith("/admin/project-types") ||
+    pathname.startsWith("/admin/templates");
 
   if (isDashboard) {
     return <div className="min-h-screen">{children}</div>;
@@ -30,7 +30,6 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
     <div className="flex flex-col min-h-screen">
       <Navbar />
       <main className="flex-grow">{children}</main>
-      <Footer />
     </div>
   );
 }

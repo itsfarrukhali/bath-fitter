@@ -15,6 +15,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
+import ThemeSwitcher from "@/components/ThemeSwitcher";
 
 export default function DashboardLayout({
   children,
@@ -40,6 +41,9 @@ export default function DashboardLayout({
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>
+          <div className="ml-auto">
+            <ThemeSwitcher />
+          </div>
         </header>
 
         {/* Main Content */}

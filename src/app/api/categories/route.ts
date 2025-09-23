@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body: CategoryCreateData = await request.json();
-    const { name, slug, hasSubcategories, showerTypeId } = body;
+    const { name, slug, hasSubcategories, showerTypeId, templateId } = body;
 
     // Validation
     if (!name || !slug || !showerTypeId) {
@@ -97,11 +97,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // If using template, verify it exists
+    if (templateId) {
+      const template = await prisma.templateCategory.findUnique({
+        where: { id: templateId },
+      });
+      if (!template) {
+        return NextResponse.json(
+          { success: false, message: "Template not found" },
+          { status: 404 }
+        );
+      }
+    }
+
     // Check if shower type exists
     const showerType = await prisma.showerType.findUnique({
       where: { id: showerTypeId },
     });
-
     if (!showerType) {
       return NextResponse.json(
         { success: false, message: "Shower type not found" },
@@ -109,14 +121,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check for existing category with same slug within the same shower type
+    // Check for existing category with same slug in this shower type
     const existingCategory = await prisma.category.findFirst({
       where: { slug, showerTypeId },
     });
-
     if (existingCategory) {
       return NextResponse.json(
-        { success: false, message: "Category with this slug already exists" },
+        {
+          success: false,
+          message: "Category with this slug already exists in this shower type",
+        },
         { status: 409 }
       );
     }
@@ -127,22 +141,12 @@ export async function POST(request: NextRequest) {
         slug,
         hasSubcategories: hasSubcategories || false,
         showerTypeId,
+        templateId,
       },
       include: {
-        showerType: {
-          select: {
-            id: true,
-            name: true,
-            slug: true,
-          },
-        },
-        subcategories: true,
-        _count: {
-          select: {
-            subcategories: true,
-            products: true,
-          },
-        },
+        showerType: { select: { id: true, name: true, slug: true } },
+        template: { select: { id: true, name: true, slug: true } },
+        _count: { select: { subcategories: true, products: true } },
       },
     });
 

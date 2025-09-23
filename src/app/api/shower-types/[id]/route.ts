@@ -52,7 +52,7 @@ export async function GET(
         _count: {
           select: {
             categories: true,
-            UserDesign: true,
+            userDesigns: true,
           },
         },
       },
@@ -169,7 +169,7 @@ export async function PUT(
         _count: {
           select: {
             categories: true,
-            UserDesign: true,
+            userDesigns: true,
           },
         },
       },
@@ -209,7 +209,7 @@ export async function DELETE(
         _count: {
           select: {
             categories: true,
-            UserDesign: true,
+            userDesigns: true,
           },
         },
       },
@@ -225,7 +225,7 @@ export async function DELETE(
     // Prevent deletion if shower type has categories or user designs
     if (
       existingShowerType._count.categories > 0 ||
-      existingShowerType._count.UserDesign > 0
+      existingShowerType._count.userDesigns > 0
     ) {
       return NextResponse.json(
         {

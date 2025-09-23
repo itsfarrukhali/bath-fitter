@@ -21,7 +21,7 @@ model User {
   postalCode  String
   projects    Project[]
   createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  updatedAt   DateTime  @default(now()) @updatedAt
 }
 
 model Admin {
@@ -31,75 +31,202 @@ model Admin {
   username  String   @unique
   password  String // hashed (bcrypt)
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  updatedAt DateTime @default(now()) @updatedAt
 }
 
 model Project {
   id         String   @id @default(uuid())
   userId     String
   user       User     @relation(fields: [userId], references: [id])
-  name       String // Project name given by user
-  selections Json // JSON storing selections (wall=Padova White, base=Base1, etc.)
+  name       String
+  selections Json
   createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  updatedAt  DateTime @default(now()) @updatedAt
 }
 
 model ProjectType {
   id          Int          @id @default(autoincrement())
-  name        String // Shower, Bath, etc.
+  name        String
   slug        String       @unique
   showerTypes ShowerType[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @default(now()) @updatedAt
 }
 
 model ShowerType {
-  id            Int         @id @default(autoincrement())
-  name          String // Tub to Shower, Curved, etc.
-  slug          String      @unique
-  projectType   ProjectType @relation(fields: [projectTypeId], references: [id])
+  id            Int          @id @default(autoincrement())
+  name          String
+  slug          String       @unique
+  projectType   ProjectType  @relation(fields: [projectTypeId], references: [id])
   projectTypeId Int
+  baseImage     String?
   categories    Category[]
-  baseImage     String? // Default base image URL
-
-  UserDesign UserDesign[]
+  userDesigns   UserDesign[]
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @default(now()) @updatedAt
 }
 
+// TEMPLATE SYSTEM STARTS HERE
+model TemplateCategory {
+  id          Int     @id @default(autoincrement())
+  name        String
+  slug        String
+  description String?
+  isActive    Boolean @default(true)
+
+  // Template hierarchy
+  templateSubcategories TemplateSubcategory[]
+  templateProducts      TemplateProduct[]
+
+  // Real instances created from this template
+  categories Category[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  @@unique([slug])
+}
+
+model TemplateSubcategory {
+  id                 Int               @id @default(autoincrement())
+  name               String
+  slug               String
+  description        String?
+  templateCategory   TemplateCategory  @relation(fields: [templateCategoryId], references: [id])
+  templateCategoryId Int
+  templateProducts   TemplateProduct[]
+  subcategories      Subcategory[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  @@unique([templateCategoryId, slug])
+}
+
+model TemplateProduct {
+  id                    Int     @id @default(autoincrement())
+  name                  String
+  slug                  String
+  description           String?
+  thumbnailUrl          String? // Product thumbnail from admin
+  templateCategoryId    Int?
+  templateSubcategoryId Int?
+
+  // Can belong to either template category or subcategory
+  templateCategory    TemplateCategory?    @relation(fields: [templateCategoryId], references: [id])
+  templateSubcategory TemplateSubcategory? @relation(fields: [templateSubcategoryId], references: [id])
+
+  // Template variants (common across all instances)
+  templateVariants TemplateVariant[]
+
+  // Real product instances
+  products Product[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+}
+
+model TemplateVariant {
+  id                Int             @id @default(autoincrement())
+  colorName         String
+  colorCode         String?
+  imageUrl          String
+  publicId          String?
+  templateProduct   TemplateProduct @relation(fields: [templateProductId], references: [id])
+  templateProductId Int
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  ProductVariant ProductVariant[]
+}
+
+// REAL INSTANCE MODELS
 model Category {
-  id               Int           @id @default(autoincrement())
+  id               Int     @id @default(autoincrement())
   name             String
   slug             String
-  hasSubcategories Boolean       @default(false)
-  showerType       ShowerType    @relation(fields: [showerTypeId], references: [id])
-  showerTypeId     Int
-  subcategories    Subcategory[]
-  products         Product[]
+  hasSubcategories Boolean @default(false)
+
+  // Template reference
+  templateId Int?
+  template   TemplateCategory? @relation(fields: [templateId], references: [id])
+
+  // Shower type specific
+  showerType   ShowerType @relation(fields: [showerTypeId], references: [id])
+  showerTypeId Int
+
+  // Instance specific data
+  subcategories Subcategory[]
+  products      Product[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  @@unique([showerTypeId, slug])
 }
 
 model Subcategory {
-  id         Int       @id @default(autoincrement())
-  name       String
-  slug       String
-  category   Category  @relation(fields: [categoryId], references: [id])
+  id   Int    @id @default(autoincrement())
+  name String
+  slug String
+
+  // Template reference
+  templateId Int?
+  template   TemplateSubcategory? @relation(fields: [templateId], references: [id])
+
+  // Category relationship
+  category   Category @relation(fields: [categoryId], references: [id])
   categoryId Int
-  products   Product[]
+
+  // Instance specific
+  products Product[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  @@unique([categoryId, slug])
 }
 
 model Product {
-  id            Int              @id @default(autoincrement())
-  name          String // Base 1, Genova, etc.
-  category      Category         @relation(fields: [categoryId], references: [id])
+  id   Int    @id @default(autoincrement())
+  name String
+  slug String
+
+  // Template reference
+  templateId Int?
+  template   TemplateProduct? @relation(fields: [templateId], references: [id])
+
+  // Relationships
+  category      Category     @relation(fields: [categoryId], references: [id])
   categoryId    Int
-  subcategory   Subcategory?     @relation(fields: [subcategoryId], references: [id])
+  subcategory   Subcategory? @relation(fields: [subcategoryId], references: [id])
   subcategoryId Int?
-  variants      ProductVariant[]
+
+  // Instance specific variants (can override template variants)
+  variants ProductVariant[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  @@unique([categoryId, slug])
+  @@unique([subcategoryId, slug])
 }
 
 model ProductVariant {
   id        Int     @id @default(autoincrement())
   colorName String
-  colorCode String? // Hex code for UI
-  imageUrl  String // Cloudinary URL
+  colorCode String?
+  imageUrl  String
+
+  // Can override template variant image
+  templateVariantId Int?
+  templateVariant   TemplateVariant? @relation(fields: [templateVariantId], references: [id])
+
   product   Product @relation(fields: [productId], references: [id])
   productId Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
 }
 
 model UserDesign {
@@ -108,8 +235,9 @@ model UserDesign {
   userEmail      String?
   userPhone      String?
   userPostalCode String?
-  designData     Json // Stores all selected options
+  designData     Json
   showerType     ShowerType @relation(fields: [showerTypeId], references: [id])
   showerTypeId   Int
   createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @default(now()) @updatedAt
 }

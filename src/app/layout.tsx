@@ -4,6 +4,7 @@ import "./globals.css";
 import AuthProvider from "@/context/AuthProvider";
 import { Toaster } from "@/components/ui/sonner";
 import ClientLayout from "@/components/ClientLayout";
+import ThemeProviderClient from "@/components/theme-provider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -16,8 +17,11 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Bath Fitter",
-  description: "Bath Fitter - Get a quote for your bath fittings",
+  title: "Home Care",
+  description: "Home care - Get a quote for your bath fittings",
+  icons: {
+    icon: "/home-care-logo-black.jpg",
+  },
 };
 
 export default function RootLayout({
@@ -26,14 +30,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased ${geistSans.className} bg-gray-50 text-gray-900`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased ${geistSans.className} bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100`}
       >
-        <AuthProvider>
-          <ClientLayout>{children}</ClientLayout>
-          <Toaster position="top-right" richColors />
-        </AuthProvider>
+        <ThemeProviderClient>
+          <AuthProvider>
+            <ClientLayout>{children}</ClientLayout>
+            <Toaster position="top-right" richColors theme="system" />
+          </AuthProvider>
+        </ThemeProviderClient>
       </body>
     </html>
   );
