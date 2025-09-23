@@ -4,13 +4,14 @@ import { createUnauthorizedResponse, getAuthenticatedUser } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { deleteFromCloudinary } from "@/lib/cloudinary";
 
-type Params = { id: string };
+type Params = Promise<{ id: string }>;
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Params }
+  segmentData: { params: Params }
 ) {
   try {
+    const params = await segmentData.params;
     const { id } = params;
 
     const templateVariant = await prisma.templateVariant.findUnique({
@@ -46,7 +47,7 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: Params }
+  segmentData: { params: Params }
 ) {
   try {
     const authUser = await getAuthenticatedUser(request);
@@ -54,6 +55,7 @@ export async function PUT(
       return createUnauthorizedResponse();
     }
 
+    const params = await segmentData.params;
     const { id } = params;
     const body = await request.json();
     const { colorName, colorCode, imageUrl, publicId } = body;
@@ -155,7 +157,7 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Params }
+  segmentData: { params: Params }
 ) {
   try {
     const authUser = await getAuthenticatedUser(request);
@@ -163,6 +165,7 @@ export async function DELETE(
       return createUnauthorizedResponse();
     }
 
+    const params = await segmentData.params;
     const { id } = params;
 
     // Check if template variant exists

@@ -2,7 +2,7 @@
 "use client";
 import { useState, useEffect } from "react"; // Add useEffect
 import axios, { AxiosError } from "axios";
-import { Loader2, Plus, FolderTree } from "lucide-react";
+import { Loader2, FolderTree } from "lucide-react";
 import {
   Dialog,
   DialogContent,

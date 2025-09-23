@@ -42,24 +42,6 @@ interface TemplateSubcategoryData {
   templateProducts: TemplateProductData[];
 }
 
-interface TemplateCategoryData {
-  id: number;
-  name: string;
-  slug: string;
-  description?: string;
-  isActive: boolean;
-  templateSubcategories: TemplateSubcategoryData[];
-  templateProducts: TemplateProductData[];
-}
-
-interface ProductCreateData {
-  name: string;
-  slug: string;
-  templateId: number;
-  categoryId: number;
-  subcategoryId?: number;
-}
-
 export async function POST(request: NextRequest) {
   try {
     const authUser = await getAuthenticatedUser(request);
