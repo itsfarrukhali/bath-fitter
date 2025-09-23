@@ -33,15 +33,6 @@ interface TemplateProductData {
   templateVariants: TemplateVariantData[];
 }
 
-interface TemplateSubcategoryData {
-  id: number;
-  name: string;
-  slug: string;
-  description?: string;
-  templateCategoryId: number;
-  templateProducts: TemplateProductData[];
-}
-
 export async function POST(request: NextRequest) {
   try {
     const authUser = await getAuthenticatedUser(request);
