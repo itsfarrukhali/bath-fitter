@@ -2,11 +2,62 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createUnauthorizedResponse, getAuthenticatedUser } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 
 interface InstantiateRequest {
   templateCategoryId: number;
   showerTypeIds: number[];
   customName?: string;
+}
+
+// Define proper interfaces for the template data
+interface TemplateVariantData {
+  id: number;
+  colorName: string;
+  colorCode?: string;
+  imageUrl: string;
+  publicId?: string;
+  templateProductId: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+interface TemplateProductData {
+  id: number;
+  name: string;
+  slug: string;
+  description?: string;
+  thumbnailUrl?: string;
+  templateCategoryId?: number;
+  templateSubcategoryId?: number;
+  templateVariants: TemplateVariantData[];
+}
+
+interface TemplateSubcategoryData {
+  id: number;
+  name: string;
+  slug: string;
+  description?: string;
+  templateCategoryId: number;
+  templateProducts: TemplateProductData[];
+}
+
+interface TemplateCategoryData {
+  id: number;
+  name: string;
+  slug: string;
+  description?: string;
+  isActive: boolean;
+  templateSubcategories: TemplateSubcategoryData[];
+  templateProducts: TemplateProductData[];
+}
+
+interface ProductCreateData {
+  name: string;
+  slug: string;
+  templateId: number;
+  categoryId: number;
+  subcategoryId?: number;
 }
 
 export async function POST(request: NextRequest) {
@@ -47,7 +98,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const results = [];
+    const results: Array<{
+      showerTypeId: number;
+      success: boolean;
+      message?: string;
+      categoryId?: number;
+    }> = [];
 
     for (const showerTypeId of showerTypeIds) {
       // Check if shower type exists
@@ -89,7 +145,7 @@ export async function POST(request: NextRequest) {
         // Create product instances for subcategory
         for (const templateProduct of templateSubcategory.templateProducts) {
           await createProductInstance(
-            templateProduct,
+            templateProduct as TemplateProductData,
             category.id,
             subcategory.id
           );
@@ -98,7 +154,11 @@ export async function POST(request: NextRequest) {
 
       // Create direct product instances for category
       for (const templateProduct of template.templateProducts) {
-        await createProductInstance(templateProduct, category.id, null);
+        await createProductInstance(
+          templateProduct as TemplateProductData,
+          category.id,
+          null
+        );
       }
 
       results.push({ showerTypeId, success: true, categoryId: category.id });
@@ -119,20 +179,20 @@ export async function POST(request: NextRequest) {
 }
 
 async function createProductInstance(
-  templateProduct: any,
+  templateProduct: TemplateProductData,
   categoryId: number,
   subcategoryId: number | null
 ) {
-  const productData: any = {
+  // Use Prisma's proper type instead of 'any'
+  const productData: Prisma.ProductCreateInput = {
     name: templateProduct.name,
     slug: templateProduct.slug,
-    templateId: templateProduct.id,
-    categoryId: categoryId,
+    template: templateProduct.id
+      ? { connect: { id: templateProduct.id } }
+      : undefined,
+    category: { connect: { id: categoryId } },
+    ...(subcategoryId && { subcategory: { connect: { id: subcategoryId } } }),
   };
-
-  if (subcategoryId) {
-    productData.subcategoryId = subcategoryId;
-  }
 
   const product = await prisma.product.create({
     data: productData,
@@ -145,8 +205,10 @@ async function createProductInstance(
         colorName: templateVariant.colorName,
         colorCode: templateVariant.colorCode,
         imageUrl: templateVariant.imageUrl,
-        templateVariantId: templateVariant.id,
-        productId: product.id,
+        templateVariant: templateVariant.id
+          ? { connect: { id: templateVariant.id } }
+          : undefined,
+        product: { connect: { id: product.id } },
       },
     });
   }

@@ -14,13 +14,14 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { TemplateProduct } from "@/types/template";
 
 interface TemplateSubcategory {
   id: number;
   name: string;
   slug: string;
   description?: string;
-  templateProducts: any[];
+  templateProducts: TemplateProduct[];
 }
 
 interface Props {

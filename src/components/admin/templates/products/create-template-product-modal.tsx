@@ -2,6 +2,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Image from "next/image";
 import axios, { AxiosError } from "axios";
 import { Loader2, Plus, Upload, X } from "lucide-react";
 import {
@@ -197,9 +198,11 @@ export default function CreateTemplateProductModal({
                 {thumbnailUrl ? (
                   <div className="space-y-3">
                     <div className="relative inline-block mx-auto">
-                      <img
+                      <Image
                         src={thumbnailUrl}
                         alt="Product thumbnail"
+                        width={128}
+                        height={128}
                         className="h-32 w-32 object-cover rounded-lg"
                       />
                       <Button

@@ -21,7 +21,7 @@ export interface CloudinaryImage {
 }
 
 export interface CloudinaryUploadResult {
-  secure_url: any;
+  secure_url: string;
   public_id: string;
   url?: string;
 }

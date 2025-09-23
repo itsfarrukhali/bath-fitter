@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createUnauthorizedResponse, getAuthenticatedUser } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 
 export async function GET(request: NextRequest) {
   try {
@@ -9,11 +10,15 @@ export async function GET(request: NextRequest) {
     const templateCategoryId = searchParams.get("templateCategoryId");
     const templateSubcategoryId = searchParams.get("templateSubcategoryId");
 
-    const whereClause: any = {};
-    if (templateCategoryId)
+    // Use Prisma's generated types instead of 'any'
+    const whereClause: Prisma.TemplateProductWhereInput = {};
+
+    if (templateCategoryId) {
       whereClause.templateCategoryId = parseInt(templateCategoryId);
-    if (templateSubcategoryId)
+    }
+    if (templateSubcategoryId) {
       whereClause.templateSubcategoryId = parseInt(templateSubcategoryId);
+    }
 
     const templateProducts = await prisma.templateProduct.findMany({
       where: whereClause,
@@ -134,7 +139,7 @@ export async function POST(request: NextRequest) {
         name,
         slug,
         description,
-        thumbnailUrl: thumbnailUrl || null, // Save thumbnail
+        thumbnailUrl: thumbnailUrl || null,
         templateCategoryId,
         templateSubcategoryId,
       },

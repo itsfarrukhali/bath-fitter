@@ -31,12 +31,7 @@ import EditTemplateVariantModal from "@/components/admin/templates/variants/edit
 import DeleteTemplateVariantModal from "@/components/admin/templates/variants/delete-template-variant-modal";
 
 // Import types from your type definitions
-import {
-  TemplateCategory,
-  TemplateSubcategory,
-  TemplateProduct,
-  TemplateVariant,
-} from "@/types/template";
+import { TemplateCategory } from "@/types/template";
 
 export default function TemplateDetailPage() {
   const params = useParams();

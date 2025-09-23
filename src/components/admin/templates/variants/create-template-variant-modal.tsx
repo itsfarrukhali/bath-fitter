@@ -2,8 +2,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Image from "next/image";
 import axios, { AxiosError } from "axios";
-import { Loader2, Plus, Upload, X } from "lucide-react";
+import { Loader2, Plus, Upload } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -182,9 +183,11 @@ export default function CreateTemplateVariantModal({
               <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
                 {imageUrl ? (
                   <div className="space-y-3">
-                    <img
+                    <Image
                       src={imageUrl}
                       alt="Variant preview"
+                      width={128}
+                      height={128}
                       className="mx-auto h-32 w-32 object-cover rounded"
                     />
                     <p className="text-sm text-green-600">

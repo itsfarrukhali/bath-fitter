@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createUnauthorizedResponse, getAuthenticatedUser } from "@/lib/auth";
 import prisma from "@/lib/prisma";
-import { deleteFromCloudinary, extractPublicId } from "@/lib/cloudinary";
+import { deleteFromCloudinary } from "@/lib/cloudinary";
 
 type Params = { id: string };
 

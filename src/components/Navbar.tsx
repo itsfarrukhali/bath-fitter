@@ -1,18 +1,21 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
 import { useTheme } from "next-themes";
 import ThemeSwitcher from "./ThemeSwitcher";
 
 export default function Navbar() {
-  const { theme } = useTheme();
+  const { theme, systemTheme } = useTheme();
 
+  const resolved = theme === "system" ? systemTheme : theme;
   const logoSrc =
-    theme === "dark"
+    resolved === "dark"
       ? "/home-care-logo-black.jpg"
       : "/home-care-logo-white.jpg";
 
   return (
-    <nav className=" shadow-sm border-b border-gray-100 dark:border-gray-800 sticky top-0 z-50">
+    <nav className="shadow-sm border-b border-gray-100 dark:border-gray-800 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}

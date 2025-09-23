@@ -15,12 +15,13 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { TemplateVariant } from "@/types/template";
 
 interface TemplateProduct {
   id: number;
   name: string;
   slug: string;
-  templateVariants: any[];
+  templateVariants: TemplateVariant[];
 }
 
 interface Props {

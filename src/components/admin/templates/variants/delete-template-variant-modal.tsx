@@ -77,8 +77,8 @@ export default function DeleteTemplateVariantModal({
         <DialogHeader>
           <DialogTitle>Delete Template Variant</DialogTitle>
           <DialogDescription>
-            Are you sure you want to delete the variant "{colorName}"? This
-            action cannot be undone.
+            Are you sure you want to delete the variant &apos;{colorName}&apos;?
+            This action cannot be undone.
           </DialogDescription>
         </DialogHeader>
 

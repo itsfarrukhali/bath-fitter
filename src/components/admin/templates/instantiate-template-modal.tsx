@@ -1,4 +1,4 @@
-// app/templates/instantiate-template-modal.tsx
+// src/components/admin/templates/instantiate-template-modal.tsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -21,6 +21,13 @@ interface ShowerType {
   id: number;
   name: string;
   slug: string;
+}
+
+interface InstantiationResult {
+  showerTypeId: number;
+  success: boolean;
+  message?: string;
+  categoryId?: number;
 }
 
 interface Props {
@@ -78,7 +85,7 @@ export default function InstantiateTemplateModal({
       if (!data.success) throw new Error(data.message);
 
       const successCount = data.data.filter(
-        (result: any) => result.success
+        (result: InstantiationResult) => result.success
       ).length;
       toast.success(
         `Template instantiated to ${successCount} shower types successfully`
