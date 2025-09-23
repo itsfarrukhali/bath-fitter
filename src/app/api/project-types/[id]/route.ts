@@ -23,7 +23,7 @@ export async function GET(
             _count: {
               select: {
                 categories: true,
-                UserDesign: true,
+                userDesigns: true,
               },
             },
           },
