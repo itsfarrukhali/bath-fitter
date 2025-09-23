@@ -18,7 +18,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Home Care",
-  description: "Home care - Get a quote for your bath fittings",
+  description: "Home care - We Make Your Dreams Into Reality",
   icons: {
     icon: "/home-care-logo-black.jpg",
   },
