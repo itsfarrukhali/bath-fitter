@@ -15,8 +15,8 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
     pathname === "/admin" ||
     pathname.startsWith("/admin/categories") ||
     pathname.startsWith("/admin/subcategories") ||
-    pathname.startsWith("/admin/assets") ||
-    pathname.startsWith("/admin/color-variants") ||
+    pathname.startsWith("/admin/products") ||
+    pathname.startsWith("/admin/variants") ||
     pathname.startsWith("/admin/shower-types") ||
     pathname.startsWith("/admin/project-types") ||
     pathname.startsWith("/admin/templates");

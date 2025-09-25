@@ -33,8 +33,8 @@ const adminNav = [
   { title: "Templates", url: "/admin/templates", icon: LayoutTemplate },
   { title: "Categories", url: "/admin/categories", icon: Folder },
   { title: "Subcategories", url: "/admin/subcategories", icon: FolderTree },
-  { title: "Assets", url: "/admin/assets", icon: Package },
-  { title: "Color Variants", url: "/admin/color-variants", icon: Palette },
+  { title: "Products", url: "/admin/products", icon: Package },
+  { title: "Variants", url: "/admin/variants", icon: Palette },
 ];
 
 export function AdminAppSidebar({

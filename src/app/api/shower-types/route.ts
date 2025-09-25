@@ -12,6 +12,14 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get("limit") || "10");
     const projectTypeId = searchParams.get("projectTypeId");
     const skip = (page - 1) * limit;
+    const cacheControl = "public, s-maxage=3600, stale-while-revalidate=86400";
+    // Input validation
+    if (projectTypeId && isNaN(parseInt(projectTypeId))) {
+      return NextResponse.json(
+        { success: false, message: "Invalid projectTypeId" },
+        { status: 400 }
+      );
+    }
 
     const whereClause = projectTypeId
       ? { projectTypeId: parseInt(projectTypeId) }
@@ -52,7 +60,7 @@ export async function GET(request: NextRequest) {
       prisma.showerType.count({ where: whereClause }),
     ]);
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       data: showerTypes,
       pagination: {
@@ -62,6 +70,10 @@ export async function GET(request: NextRequest) {
         totalPages: Math.ceil(total / limit),
       },
     });
+
+    response.headers.set("Cache-Control", cacheControl);
+
+    return response;
   } catch (error) {
     console.error("Error fetching shower types:", error);
     return NextResponse.json(

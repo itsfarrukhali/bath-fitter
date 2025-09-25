@@ -93,6 +93,23 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
+      // Check if category already exists for this template and shower type
+      const existingCategory = await prisma.category.findFirst({
+        where: {
+          templateId: templateCategoryId,
+          showerTypeId: showerTypeId,
+        },
+      });
+
+      if (existingCategory) {
+        results.push({
+          showerTypeId,
+          success: false,
+          message: `Template already instantiated for ${showerType.name}. Please delete existing instance first.`,
+        });
+        continue;
+      }
+
       // Create category instance
       const category = await prisma.category.create({
         data: {
@@ -160,6 +177,8 @@ async function createProductInstance(
   const productData: Prisma.ProductCreateInput = {
     name: templateProduct.name,
     slug: templateProduct.slug,
+    description: templateProduct.description,
+    thumbnailUrl: templateProduct.thumbnailUrl,
     template: templateProduct.id
       ? { connect: { id: templateProduct.id } }
       : undefined,

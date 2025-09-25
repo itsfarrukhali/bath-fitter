@@ -8,63 +8,79 @@ import { getAuthenticatedUser, createUnauthorizedResponse } from "@/lib/auth";
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const page = parseInt(searchParams.get("page") || "1");
-    const limit = parseInt(searchParams.get("limit") || "10");
     const showerTypeId = searchParams.get("showerTypeId");
-    const skip = (page - 1) * limit;
+    const includeProducts = searchParams.get("includeProducts") === "true";
 
-    const whereClause = showerTypeId
-      ? { showerTypeId: parseInt(showerTypeId) }
-      : {};
+    if (!showerTypeId) {
+      return NextResponse.json(
+        { success: false, message: "showerTypeId is required" },
+        { status: 400 }
+      );
+    }
 
-    const [categories, total] = await Promise.all([
-      prisma.category.findMany({
-        where: whereClause,
-        skip,
-        take: limit,
-        include: {
-          showerType: {
-            select: {
-              id: true,
-              name: true,
-              slug: true,
-            },
-          },
-          subcategories: {
-            include: {
-              _count: {
-                select: { products: true },
-              },
-            },
-          },
-          products: {
-            include: {
-              _count: {
-                select: { variants: true },
-              },
-            },
-          },
-          _count: {
-            select: {
-              subcategories: true,
-              products: true,
-            },
-          },
+    const categories = await prisma.category.findMany({
+      where: {
+        showerTypeId: parseInt(showerTypeId),
+        products: {
+          some: {}, // Only categories that have products
         },
-        orderBy: { name: "asc" },
-      }),
-      prisma.category.count({ where: whereClause }),
-    ]);
+      },
+      include: {
+        showerType: {
+          select: { id: true, name: true, slug: true },
+        },
+        subcategories: includeProducts
+          ? {
+              include: {
+                products: {
+                  include: {
+                    variants: {
+                      orderBy: { colorName: "asc" },
+                    },
+                  },
+                  where: {
+                    variants: {
+                      some: {}, // Only products that have variants
+                    },
+                  },
+                },
+              },
+            }
+          : false,
+        products: includeProducts
+          ? {
+              include: {
+                variants: {
+                  orderBy: { colorName: "asc" },
+                },
+              },
+              where: {
+                variants: {
+                  some: {}, // Only products that have variants
+                },
+              },
+            }
+          : false,
+      },
+      orderBy: { name: "asc" },
+    });
+
+    // Filter out categories that have no products after including variants condition
+    const filteredCategories = categories.filter((category) => {
+      const hasDirectProducts =
+        category.products && category.products.length > 0;
+
+      // Type-safe check for subcategory products
+      const hasSubcategoryProducts = category.subcategories?.some(
+        (sub: any) => sub.products && sub.products.length > 0
+      );
+
+      return hasDirectProducts || hasSubcategoryProducts;
+    });
 
     return NextResponse.json({
       success: true,
-      data: categories,
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages: Math.ceil(total / limit),
-      },
+      data: filteredCategories,
     });
   } catch (error) {
     console.error("Error fetching categories:", error);

@@ -12,15 +12,38 @@ export interface Subcategory {
   _count: {
     products: number;
   };
+  products?: Product[];
 }
 
 export interface Product {
   id: number;
   name: string;
+  slug: string;
+  description?: string;
+  thumbnailUrl?: string;
+  categoryId: number;
+  subcategoryId?: number;
+  category: {
+    id: number;
+    name: string;
+    slug: string;
+    showerType: {
+      id: number;
+      name: string;
+      slug: string;
+    };
+  };
+  subcategory?: {
+    id: number;
+    name: string;
+    slug: string;
+  };
   variants: ProductVariant[];
   _count: {
     variants: number;
   };
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface ProductVariant {

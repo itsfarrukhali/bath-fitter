@@ -1,125 +1,228 @@
+// app/plumbing-config/page.tsx
 "use client";
 
 import { useState, useEffect } from "react";
-import { ArrowRight } from "lucide-react";
-import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
+import { ArrowLeft, Check, Loader2, Wrench } from "lucide-react";
+import { motion } from "framer-motion";
 import Image from "next/image";
-
-// ShadCN imports
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardFooter,
-} from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { PlumbingConfig } from "@/types/shower-config";
 
-export default function PlumbingConfig() {
-  const [selectedSide, setSelectedSide] = useState<string | null>(null);
-  const [projectType, setProjectType] = useState("shower");
-  const [showerShape, setShowerShape] = useState("");
+interface SessionConfig {
+  projectTypeName?: string;
+  showerTypeName?: string;
+  showerTypeId?: number;
+  projectTypeId?: number;
+}
+
+export default function PlumbingConfigPage() {
   const router = useRouter();
+  const [selectedConfig, setSelectedConfig] = useState<string | null>(null);
+  const [configuration, setConfiguration] = useState<SessionConfig | null>(
+    null
+  );
+  const [loading, setLoading] = useState<boolean>(true);
+  const [imageErrors, setImageErrors] = useState<{ [key: string]: boolean }>(
+    {}
+  );
 
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const type = urlParams.get("type") || "shower";
-    const shape = urlParams.get("shape") || "";
-    setProjectType(type);
-    setShowerShape(shape);
+    loadConfiguration();
   }, []);
 
-  const plumbingSides = [
+  const loadConfiguration = () => {
+    try {
+      const config = sessionStorage.getItem("showerConfig");
+      if (config) {
+        const parsed: SessionConfig = JSON.parse(config);
+        setConfiguration(parsed);
+
+        // Check if we have the required data
+        if (!parsed.showerTypeId) {
+          router.push("/shower-type");
+          return;
+        }
+      } else {
+        // No configuration found, redirect to start
+        router.push("/project-type");
+      }
+    } catch (err) {
+      console.error("Error loading configuration:", err);
+      router.push("/project-type");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const plumbingConfigs: PlumbingConfig[] = [
     {
       id: "right",
-      title: "Right",
-      description: "Plumbing on the right side",
-      image: "/bathtub-right.jpg?w=600&h=400&fit=crop",
+      name: "Right Plumbing",
+      description: "Plumbing fixtures on the right side",
+      image: "/images/right.png",
     },
     {
       id: "left",
-      title: "Left",
-      description: "Plumbing on the left side",
-      image: "/bathtub-left.jpg?w=600&h=400&fit=crop",
+      name: "Left Plumbing",
+      description: "Plumbing fixtures on the left side",
+      image: "/images/left.png",
     },
   ];
 
-  const handleSideSelect = (sideId: string) => {
-    setSelectedSide(sideId);
-    const params = new URLSearchParams({
-      type: projectType,
-      plumbing: sideId,
-    });
-    if (showerShape) {
-      params.append("shape", showerShape);
-    }
-    router.push("/DesignBathroom?" + params.toString());
+  const handleConfigSelect = (configId: string) => {
+    setSelectedConfig(configId);
   };
 
+  const handleImageError = (imageUrl: string) => {
+    setImageErrors((prev) => ({ ...prev, [imageUrl]: true }));
+  };
+
+  const handleContinue = () => {
+    if (!selectedConfig) return;
+
+    try {
+      const existingConfig = sessionStorage.getItem("showerConfig");
+      const config: SessionConfig = existingConfig
+        ? JSON.parse(existingConfig)
+        : {};
+
+      const updatedConfig = {
+        ...config,
+        plumbingConfig: selectedConfig,
+      };
+
+      sessionStorage.setItem("showerConfig", JSON.stringify(updatedConfig));
+      router.push("/design");
+    } catch (err) {
+      console.error("Error saving configuration:", err);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+          <p className="text-muted-foreground">Loading configuration...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-background py-12 px-4">
-      <div className="max-w-5xl mx-auto">
-        {/* Heading */}
+    <div className="min-h-screen py-12 px-4 bg-background">
+      <div className="max-w-4xl mx-auto">
+        {/* Header */}
+        <div className="flex items-center mb-8">
+          <Button
+            variant="ghost"
+            onClick={() => router.back()} // More flexible back navigation
+            className="flex items-center gap-2"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back
+          </Button>
+        </div>
+
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
-          className="text-center mb-12"
+          className="text-center mb-8"
         >
           <h1 className="text-4xl md:text-5xl font-bold mb-4">
-            How is your plumbing configured?
+            Plumbing Configuration
           </h1>
-          <p className="text-lg text-muted-foreground">
-            Choose your current plumbing setup to get the best design experience
+          <p className="text-xl text-muted-foreground">
+            Select the plumbing configuration for your shower
           </p>
+
+          {configuration && (
+            <div className="mt-4 flex flex-wrap justify-center gap-4 text-sm text-muted-foreground">
+              {configuration.projectTypeName && (
+                <span>Project: {configuration.projectTypeName}</span>
+              )}
+              {configuration.showerTypeName && (
+                <span>Shower: {configuration.showerTypeName}</span>
+              )}
+            </div>
+          )}
         </motion.div>
 
-        {/* Options */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {plumbingSides.map((side, index) => (
+        {/* Plumbing Config Options */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+          {plumbingConfigs.map((config, index) => (
             <motion.div
-              key={side.id}
+              key={config.id}
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: index * 0.1 }}
             >
               <Card
-                onClick={() => handleSideSelect(side.id)}
-                className={`cursor-pointer overflow-hidden transition-all border hover:shadow-lg ${
-                  selectedSide === side.id ? "ring-2 ring-primary" : ""
+                onClick={() => handleConfigSelect(config.id)}
+                className={`cursor-pointer group overflow-hidden border-2 transition-all duration-300 h-full ${
+                  selectedConfig === config.id
+                    ? "border-primary shadow-lg"
+                    : "border-transparent hover:border-gray-300"
                 }`}
               >
-                {/* Image */}
-                <div className="relative aspect-video w-full overflow-hidden">
-                  <Image
-                    src={side.image}
-                    alt={side.title}
-                    fill
-                    className="object-cover transition-transform duration-500 group-hover:scale-105"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent opacity-0 hover:opacity-100 transition-opacity duration-300" />
-                </div>
-
-                {/* Text */}
-                <CardHeader className="text-center">
-                  <CardTitle className="text-2xl">{side.title}</CardTitle>
-                  <CardDescription>{side.description}</CardDescription>
-                </CardHeader>
-
-                <CardFooter className="justify-center pb-6">
-                  <Button
-                    variant={selectedSide === side.id ? "default" : "outline"}
-                    className="group cursor-pointer flex items-center space-x-2"
-                  >
-                    Select
-                    <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform duration-300" />
-                  </Button>
-                </CardFooter>
+                <CardContent className="p-0">
+                  <div className="relative aspect-[3/4] w-full overflow-hidden">
+                    <Image
+                      src={
+                        imageErrors[config.image]
+                          ? "/images/placeholder.png"
+                          : config.image
+                      }
+                      alt={config.name}
+                      fill
+                      className="object-cover group-hover:scale-105 transition-transform duration-500"
+                      sizes="(max-width: 768px) 100vw, 50vw"
+                      onError={() => handleImageError(config.image)}
+                    />
+                    {selectedConfig === config.id && (
+                      <div className="absolute top-2 right-2 bg-primary text-primary-foreground rounded-full p-1">
+                        <Check className="h-4 w-4" />
+                      </div>
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+                    <div className="absolute bottom-0 left-0 right-0 p-4 text-white">
+                      <h3 className="font-semibold text-lg">{config.name}</h3>
+                      <p className="text-sm opacity-90">{config.description}</p>
+                    </div>
+                  </div>
+                </CardContent>
               </Card>
             </motion.div>
           ))}
         </div>
+
+        {/* Continue Button */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.3 }}
+          className="text-center"
+        >
+          <Button
+            onClick={handleContinue}
+            disabled={!selectedConfig}
+            size="lg"
+            className="min-w-[200px] cursor-pointer"
+          >
+            <Wrench className="h-5 w-5 mr-2" />
+            Continue to Design
+            <ArrowLeft className="ml-2 h-5 w-5 rotate-180" />
+          </Button>
+
+          {!selectedConfig && (
+            <p className="text-sm text-muted-foreground mt-2">
+              Please select a plumbing configuration to continue
+            </p>
+          )}
+        </motion.div>
       </div>
     </div>
   );

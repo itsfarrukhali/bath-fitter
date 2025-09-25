@@ -12,6 +12,9 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get("limit") || "10");
     const skip = (page - 1) * limit;
 
+    // Add cache control for public API
+    const cacheControl = "public, s-maxage=3600, stale-while-revalidate=86400";
+
     const [projectTypes, total] = await Promise.all([
       prisma.projectType.findMany({
         skip,
@@ -28,7 +31,7 @@ export async function GET(request: NextRequest) {
       prisma.projectType.count(),
     ]);
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       data: projectTypes,
       pagination: {
@@ -38,6 +41,10 @@ export async function GET(request: NextRequest) {
         totalPages: Math.ceil(total / limit),
       },
     });
+
+    // Set cache headers
+    response.headers.set("Cache-Control", cacheControl);
+    return response;
   } catch (error) {
     console.error("Error fetching project types:", error);
     return NextResponse.json(

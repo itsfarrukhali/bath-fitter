@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
           },
         },
       },
-      orderBy: { name: "asc" },
+      orderBy: { name: "desc" },
     });
 
     return NextResponse.json({

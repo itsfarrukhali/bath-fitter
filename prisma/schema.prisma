@@ -188,9 +188,11 @@ model Subcategory {
 }
 
 model Product {
-  id   Int    @id @default(autoincrement())
-  name String
-  slug String
+  id           Int     @id @default(autoincrement())
+  name         String
+  slug         String
+  description  String?
+  thumbnailUrl String? // Product main image
 
   // Template reference
   templateId Int?
@@ -216,7 +218,8 @@ model ProductVariant {
   id        Int     @id @default(autoincrement())
   colorName String
   colorCode String?
-  imageUrl  String
+  imageUrl  String // Variant specific image
+  publicId  String? // Cloudinary public ID
 
   // Can override template variant image
   templateVariantId Int?
