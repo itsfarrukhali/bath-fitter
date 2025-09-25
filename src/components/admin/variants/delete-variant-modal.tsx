@@ -2,7 +2,7 @@
 "use client";
 
 import { useState } from "react";
-import axios from "axios";
+import axios, { AxiosError } from "axios";
 import { Loader2, Trash2, AlertTriangle } from "lucide-react";
 import {
   Dialog,
@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
 import { ProductVariant } from "@/types/products";
+import Image from "next/image";
 
 interface Props {
   open: boolean;
@@ -45,9 +46,12 @@ export default function DeleteVariantModal({
       } else {
         toast.error(data.message || "Failed to delete variant");
       }
-    } catch (error: any) {
-      console.error("Delete error:", error);
-      toast.error(error.response?.data?.message || "Failed to delete variant");
+    } catch (err: unknown) {
+      if (err instanceof AxiosError) {
+        toast.error(err.response?.data?.message || "Failed to delete variant");
+      } else {
+        toast.error("An unexpected error occurred");
+      }
     } finally {
       setLoading(false);
     }
@@ -89,10 +93,12 @@ export default function DeleteVariantModal({
                 </p>
               )}
             </div>
-            <img
+            <Image
               src={variant.imageUrl}
               alt={variant.colorName || "Variant image"}
               className="w-32 h-32 object-cover rounded mt-2"
+              width={40}
+              height={40}
             />
           </div>
 

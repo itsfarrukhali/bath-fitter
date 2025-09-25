@@ -26,6 +26,7 @@ import {
 import { toast } from "sonner";
 import generateSlug from "@/utils/generateSlug";
 import { Category } from "@/types/category";
+import Image from "next/image";
 
 interface Props {
   open: boolean;
@@ -199,10 +200,12 @@ export default function CreateProductModal({
                 {thumbnailUrl ? (
                   <div className="space-y-3">
                     <div className="relative inline-block mx-auto">
-                      <img
+                      <Image
                         src={thumbnailUrl}
                         alt="Product thumbnail"
                         className="h-32 w-32 object-cover rounded-lg"
+                        width={60}
+                        height={60}
                       />
                       <Button
                         type="button"

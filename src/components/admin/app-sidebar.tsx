@@ -34,7 +34,6 @@ const adminNav = [
   { title: "Categories", url: "/admin/categories", icon: Folder },
   { title: "Subcategories", url: "/admin/subcategories", icon: FolderTree },
   { title: "Products", url: "/admin/products", icon: Package },
-  { title: "Variants", url: "/admin/variants", icon: Palette },
 ];
 
 export function AdminAppSidebar({
