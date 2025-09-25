@@ -1,8 +1,8 @@
-// app/admin/variants/page.tsx
+// components/admin/variants/variants-page-content.tsx
 "use client";
 
-import { useState, useEffect } from "react";
-import { useSearchParams } from "next/navigation";
+import { useState, useEffect, useCallback } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import axios, { AxiosError } from "axios";
 import { Plus, Edit, Trash2, ArrowLeft, Loader2, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -17,14 +17,16 @@ import DeleteVariantModal from "@/components/admin/variants/delete-variant-modal
 import { Label } from "@/components/ui/label";
 import Image from "next/image";
 
-export default function VariantsPage() {
+export default function VariantsPageContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const productId = searchParams.get("productId");
 
   const [variants, setVariants] = useState<ProductVariant[]>([]);
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [error, setError] = useState<string | null>(null);
 
   // Modals state
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -34,57 +36,49 @@ export default function VariantsPage() {
     null
   );
 
-  useEffect(() => {
-    if (productId) {
-      fetchVariants();
-      fetchProduct();
-    }
-  }, [productId]);
-
-  const fetchVariants = async () => {
+  const fetchData = useCallback(async () => {
     if (!productId) return;
 
     try {
       setLoading(true);
-      const { data } = await axios.get(`/api/variants?productId=${productId}`);
-      if (data.success) {
-        setVariants(data.data);
+      setError(null);
+
+      const [variantsResponse, productResponse] = await Promise.all([
+        axios.get(`/api/variants?productId=${productId}`),
+        axios.get(`/api/products/${productId}`),
+      ]);
+
+      if (variantsResponse.data.success) {
+        setVariants(variantsResponse.data.data);
+      }
+
+      if (productResponse.data.success) {
+        setProduct(productResponse.data.data);
       }
     } catch (error) {
-      console.error("Error fetching variants:", error);
+      console.error("Error fetching data:", error);
+      let errorMessage = "Failed to fetch data";
+
       if (error instanceof AxiosError) {
-        toast.error(
-          error.response?.data?.message || "Failed to fetch variants"
-        );
+        errorMessage = error.response?.data?.message || errorMessage;
       } else if (error instanceof Error) {
-        toast.error(error.message);
-      } else {
-        toast.error("Failed to fetch variants");
+        errorMessage = error.message;
       }
+
+      setError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
-  };
+  }, [productId]);
 
-  const fetchProduct = async () => {
-    if (!productId) return;
-
-    try {
-      const { data } = await axios.get(`/api/products/${productId}`);
-      if (data.success) {
-        setProduct(data.data);
-      }
-    } catch (error) {
-      console.error("Error fetching product:", error);
-      if (error instanceof AxiosError) {
-        toast.error(error.response?.data?.message || "Failed to fetch product");
-      } else if (error instanceof Error) {
-        toast.error(error.message);
-      } else {
-        toast.error("Failed to fetch product");
-      }
+  useEffect(() => {
+    if (productId) {
+      fetchData();
+    } else {
+      setLoading(false);
     }
-  };
+  }, [productId, fetchData]);
 
   const filteredVariants = variants.filter(
     (variant) =>
@@ -102,6 +96,11 @@ export default function VariantsPage() {
     setShowDeleteModal(true);
   };
 
+  const handleGoBack = () => {
+    router.push("/admin/products");
+  };
+
+  // Loading state
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -110,16 +109,44 @@ export default function VariantsPage() {
     );
   }
 
+  // Error state
+  if (error) {
+    return (
+      <div className="container mx-auto p-6 text-center">
+        <div className="p-4 border border-destructive/50 rounded-md bg-destructive/10">
+          <p className="text-destructive">{error}</p>
+          <div className="flex gap-2 justify-center mt-4">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={fetchData}
+              className="cursor-pointer"
+            >
+              Try Again
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleGoBack}
+              className="cursor-pointer"
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Products
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // No product ID
   if (!productId) {
     return (
-      <div className="container mx-auto p-1 text-center">
+      <div className="container mx-auto p-6 text-center">
         <p className="text-muted-foreground">
           Please select a product to view variants
         </p>
-        <Button
-          onClick={() => window.history.back()}
-          className="mt-4 cursor-pointer"
-        >
+        <Button onClick={handleGoBack} className="mt-4 cursor-pointer">
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back to Products
         </Button>
@@ -128,14 +155,14 @@ export default function VariantsPage() {
   }
 
   return (
-    <div className="container mx-auto p-1 space-y-6">
+    <div className="container mx-auto p-6 space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div className="flex items-center gap-4">
           <Button
             variant="outline"
             className="cursor-pointer"
-            onClick={() => window.history.back()}
+            onClick={handleGoBack}
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back
@@ -152,6 +179,7 @@ export default function VariantsPage() {
         <Button
           className="cursor-pointer"
           onClick={() => setShowCreateModal(true)}
+          disabled={!product}
         >
           <Plus className="h-4 w-4 mr-2" />
           Add Variant
@@ -211,7 +239,7 @@ export default function VariantsPage() {
       {/* Variants Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredVariants.map((variant) => (
-          <Card key={variant.id} className="overflow-hidden">
+          <Card key={variant.id} className="overflow-hidden relative z-10">
             <CardHeader className="pb-3">
               <div className="flex justify-between items-start">
                 <CardTitle className="text-lg">{variant.colorName}</CardTitle>
@@ -226,14 +254,21 @@ export default function VariantsPage() {
             </CardHeader>
 
             <CardContent className="space-y-4">
-              <Image
-                src={variant.imageUrl}
-                alt={variant.colorName}
-                className="w-full h-48 object-cover rounded-lg"
-                width={500}
-                height={300}
-                priority
-              />
+              {variant.imageUrl ? (
+                <div className="relative w-full h-48 overflow-hidden rounded-lg bg-gray-50">
+                  <Image
+                    src={variant.imageUrl}
+                    alt={variant.colorName}
+                    fill
+                    className="object-contain"
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                  />
+                </div>
+              ) : (
+                <div className="w-full h-48 bg-gray-100 rounded-lg flex items-center justify-center">
+                  <span className="text-gray-400">No Image</span>
+                </div>
+              )}
 
               <div className="flex justify-between items-center">
                 {variant.colorCode && (
@@ -283,6 +318,7 @@ export default function VariantsPage() {
                   <Button
                     onClick={() => setShowCreateModal(true)}
                     className="mt-4 cursor-pointer"
+                    disabled={!product}
                   >
                     <Plus className="h-4 w-4 mr-2" />
                     Create Variant
@@ -306,7 +342,7 @@ export default function VariantsPage() {
           onClose={() => setShowCreateModal(false)}
           product={product}
           onVariantCreated={() => {
-            fetchVariants();
+            fetchData();
             setShowCreateModal(false);
           }}
         />
@@ -319,7 +355,7 @@ export default function VariantsPage() {
             onClose={() => setShowEditModal(false)}
             variant={selectedVariant}
             onVariantUpdated={() => {
-              fetchVariants();
+              fetchData();
               setShowEditModal(false);
             }}
           />
@@ -329,7 +365,7 @@ export default function VariantsPage() {
             onClose={() => setShowDeleteModal(false)}
             variant={selectedVariant}
             onVariantDeleted={() => {
-              fetchVariants();
+              fetchData();
               setShowDeleteModal(false);
             }}
           />

@@ -7,7 +7,6 @@ import {
   LogOut,
   Network,
   Package,
-  Palette,
   ShowerHead,
 } from "lucide-react";
 import {
