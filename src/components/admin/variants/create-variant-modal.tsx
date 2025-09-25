@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Product } from "@/types/products";
+import Image from "next/image";
 
 interface Props {
   open: boolean;
@@ -145,10 +146,12 @@ export default function CreateVariantModal({
                 {imageUrl ? (
                   <div className="space-y-2">
                     <div className="relative inline-block mx-auto">
-                      <img
+                      <Image
                         src={imageUrl}
                         alt="Variant preview"
                         className="h-32 w-32 object-cover rounded-lg"
+                        width={80}
+                        height={80}
                       />
                       <Button
                         type="button"

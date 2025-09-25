@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { ProductVariant } from "@/types/products";
+import { Product, ProductVariant } from "@/types/products";
 import CreateVariantModal from "@/components/admin/variants/create-variant-modal";
 import EditVariantModal from "@/components/admin/variants/edit-variant-modal";
 import DeleteVariantModal from "@/components/admin/variants/delete-variant-modal";
@@ -22,7 +22,7 @@ export default function VariantsPage() {
   const productId = searchParams.get("productId");
 
   const [variants, setVariants] = useState<ProductVariant[]>([]);
-  const [product, setProduct] = useState<any>(null);
+  const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
 

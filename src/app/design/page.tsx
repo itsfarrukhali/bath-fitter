@@ -1,7 +1,7 @@
 // app/design/page.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
@@ -37,19 +37,11 @@ export default function DesignPage() {
   const [loading, setLoading] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
 
-  useEffect(() => {
-    loadConfiguration();
-    checkViewport();
-    window.addEventListener("resize", checkViewport);
-
-    return () => window.removeEventListener("resize", checkViewport);
+  const checkViewport = useCallback(() => {
+    setIsMobile(window.innerWidth < 768);
   }, []);
 
-  const checkViewport = () => {
-    setIsMobile(window.innerWidth < 768);
-  };
-
-  const loadConfiguration = async () => {
+  const loadConfiguration = useCallback(async () => {
     try {
       setLoading(true);
 
@@ -88,7 +80,15 @@ export default function DesignPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [router]);
+
+  useEffect(() => {
+    loadConfiguration();
+    checkViewport();
+    window.addEventListener("resize", checkViewport);
+
+    return () => window.removeEventListener("resize", checkViewport);
+  }, [loadConfiguration, checkViewport]);
 
   const getBaseImage = (showerTypeId: number, plumbingConfig?: string) => {
     const showerTypeMap: { [key: number]: string } = {

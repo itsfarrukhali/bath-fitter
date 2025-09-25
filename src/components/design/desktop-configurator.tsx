@@ -12,7 +12,7 @@ import {
   ProductVariant,
   Subcategory,
 } from "@/types/design";
-import Image from "next/image";
+import Image, { ImageProps } from "next/image";
 
 interface DesktopConfiguratorProps {
   state: ConfiguratorState;
@@ -24,7 +24,7 @@ interface DesktopConfiguratorProps {
 }
 
 // ImageWithFallback component to handle image errors
-const ImageWithFallback = ({ src, alt, ...props }: any) => {
+const ImageWithFallback = ({ src, alt, ...props }: ImageProps) => {
   return (
     <Image
       src={src || "/images/placeholder.png"}
@@ -281,7 +281,7 @@ function ProductCard({
 }: {
   product: Product;
   isSelected: boolean;
-  selectedProduct?: any;
+  selectedProduct?: { product: Product; variant?: ProductVariant };
   onSelect: (product: Product, variant?: ProductVariant) => void;
   onVariantSelect: (variant: ProductVariant, product: Product) => void;
   getProductKey: (product: Product) => string;

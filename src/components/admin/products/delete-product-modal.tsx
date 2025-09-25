@@ -2,7 +2,7 @@
 "use client";
 
 import { useState } from "react";
-import axios from "axios";
+import axios, { AxiosError } from "axios";
 import { Loader2, Trash2, AlertTriangle } from "lucide-react";
 import {
   Dialog,
@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
 import { Product } from "@/types/products";
+import Image from "next/image";
 
 interface Props {
   open: boolean;
@@ -45,9 +46,12 @@ export default function DeleteProductModal({
       } else {
         toast.error(data.message || "Failed to delete product");
       }
-    } catch (error: any) {
-      console.error("Delete error:", error);
-      toast.error(error.response?.data?.message || "Failed to delete product");
+    } catch (err: unknown) {
+      if (err instanceof AxiosError) {
+        toast.error(err.response?.data?.message || "Failed to delete product");
+      } else {
+        toast.error("An unexpected error occurred");
+      }
     } finally {
       setLoading(false);
     }
@@ -87,10 +91,12 @@ export default function DeleteProductModal({
                 <strong>Variants:</strong> {product._count.variants} variant(s)
               </p>
               {product.thumbnailUrl && (
-                <img
+                <Image
                   src={product.thumbnailUrl}
                   alt={product.name}
                   className="w-20 h-20 object-cover rounded mt-2"
+                  width={80}
+                  height={80}
                 />
               )}
             </div>

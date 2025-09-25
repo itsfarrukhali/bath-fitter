@@ -13,7 +13,7 @@ import {
   ProductVariant,
   Subcategory,
 } from "@/types/design";
-import Image from "next/image";
+import Image, { ImageProps } from "next/image";
 
 interface MobileConfiguratorProps {
   state: ConfiguratorState;
@@ -25,7 +25,7 @@ interface MobileConfiguratorProps {
 }
 
 // ImageWithFallback component for mobile
-const ImageWithFallback = ({ src, alt, ...props }: any) => {
+const ImageWithFallback = ({ src, alt, ...props }: ImageProps) => {
   return (
     <Image
       src={src || "/images/placeholder.png"}
@@ -254,13 +254,15 @@ export default function MobileConfigurator({
                       <div className="flex gap-3 pr-8">
                         <div className="flex-shrink-0 w-12 h-12 bg-gray-100 rounded flex items-center justify-center">
                           {selectedProduct.product?.thumbnailUrl ? (
-                            <img
+                            <Image
                               src={selectedProduct.product.thumbnailUrl}
                               alt={selectedProduct.product.name}
                               className="w-full h-full object-cover rounded"
                               onError={(e) => {
                                 e.currentTarget.src = "/images/placeholder.png";
                               }}
+                              width={40}
+                              height={40}
                             />
                           ) : (
                             <div className="w-6 h-6 text-gray-400">📷</div>
@@ -337,11 +339,10 @@ function ProductCard({
   selectedProduct,
   onSelect,
   onVariantSelect,
-  getProductKey,
 }: {
   product: Product;
   isSelected: boolean;
-  selectedProduct?: any;
+  selectedProduct?: { product: Product; variant?: ProductVariant };
   onSelect: (product: Product, variant?: ProductVariant) => void;
   onVariantSelect: (variant: ProductVariant, product: Product) => void;
   getProductKey: (product: Product) => string;
@@ -362,13 +363,15 @@ function ProductCard({
         <div className="flex gap-3">
           <div className="flex-shrink-0 w-16 h-16 bg-gray-100 rounded flex items-center justify-center">
             {product.thumbnailUrl ? (
-              <img
+              <Image
                 src={product.thumbnailUrl}
                 alt={product.name}
                 className="w-full h-full object-cover rounded"
                 onError={(e) => {
                   e.currentTarget.src = "/images/placeholder.png";
                 }}
+                width={40}
+                height={40}
               />
             ) : (
               <div className="w-8 h-8 text-gray-400">📷</div>

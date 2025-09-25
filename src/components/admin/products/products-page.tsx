@@ -1,8 +1,8 @@
 // app/admin/products/page.tsx
 "use client";
 
-import { useState, useEffect } from "react";
-import axios from "axios";
+import { useState, useEffect, useCallback } from "react";
+import axios, { AxiosError } from "axios";
 import { Plus, Edit, Trash2, Eye, Loader2, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,8 +14,16 @@ import CreateProductModal from "@/components/admin/products/create-product-modal
 import EditProductModal from "@/components/admin/products/edit-product-modal";
 import DeleteProductModal from "@/components/admin/products/delete-product-modal";
 import CreateVariantModal from "@/components/admin/variants/create-variant-modal";
-
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Category } from "@/types/category";
+import { Label } from "@/components/ui/label";
+import Image from "next/image";
 
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -32,42 +40,8 @@ export default function ProductsPage() {
   const [showVariantModal, setShowVariantModal] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
-  useEffect(() => {
-    fetchProducts();
-    fetchCategories();
-  }, []);
-
-  useEffect(() => {
-    filterProducts();
-  }, [products, searchTerm, selectedCategory]);
-
-  const fetchProducts = async () => {
-    try {
-      setLoading(true);
-      const { data } = await axios.get("/api/products?limit=100");
-      if (data.success) {
-        setProducts(data.data);
-      }
-    } catch (error) {
-      console.error("Error fetching products:", error);
-      toast.error("Failed to fetch products");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchCategories = async () => {
-    try {
-      const { data } = await axios.get("/api/categories?limit=100");
-      if (data.success) {
-        setCategories(data.data);
-      }
-    } catch (error) {
-      console.error("Error fetching categories:", error);
-    }
-  };
-
-  const filterProducts = () => {
+  // Define filterProducts with useCallback
+  const filterProducts = useCallback(() => {
     let filtered = products;
 
     // Filter by search term
@@ -92,6 +66,56 @@ export default function ProductsPage() {
     }
 
     setFilteredProducts(filtered);
+  }, [products, searchTerm, selectedCategory]); // Add dependencies
+
+  useEffect(() => {
+    fetchProducts();
+    fetchCategories();
+  }, []);
+
+  useEffect(() => {
+    filterProducts();
+  }, [filterProducts]); // Add filterProducts as dependency
+
+  const fetchProducts = async () => {
+    try {
+      setLoading(true);
+      const { data } = await axios.get("/api/products?limit=100");
+      if (data.success) {
+        setProducts(data.data);
+      }
+    } catch (err: unknown) {
+      if (err instanceof AxiosError) {
+        toast.error(err.response?.data?.message || "Failed to fetch products");
+      } else {
+        toast.error("An unexpected error occurred");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // In your products page component
+  const fetchCategories = async () => {
+    try {
+      const { data } = await axios.get(
+        "/api/categories?forAdmin=true&limit=100"
+      );
+      console.log("Categories API Response:", data);
+      if (data.success) {
+        setCategories(data.data);
+      }
+    } catch (err: unknown) {
+      if (err instanceof AxiosError) {
+        toast.error(
+          err.response?.data?.message || "Failed to fetch categories"
+        );
+      } else {
+        toast.error("An unexpected error occurred");
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleEdit = (product: Product) => {
@@ -158,7 +182,7 @@ export default function ProductsPage() {
         <CardContent className="pt-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Search Products</label>
+              <Label className="text-sm font-medium">Search Products</Label>
               <div className="relative">
                 <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -171,23 +195,37 @@ export default function ProductsPage() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Filter by Category</label>
-              <select
+              <Label className="text-sm font-medium">Filter by Category</Label>
+              <Select
                 value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
-                className="w-full p-2 border rounded-md"
+                onValueChange={setSelectedCategory}
               >
-                <option value="all">All Categories</option>
-                {categories.map((category) => (
-                  <option key={category.id} value={category.id.toString()}>
-                    {category.name} ({category.showerType?.name || "No Type"})
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="All Categories" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Categories</SelectItem>
+                  {categories.map((category) => (
+                    <SelectItem
+                      key={category.id}
+                      value={category.id.toString()}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span>{category.name}</span>
+                        {category.showerType && (
+                          <Badge variant="outline" className="text-xs ml-2">
+                            {category.showerType.name}
+                          </Badge>
+                        )}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Statistics</label>
+              <Label className="text-sm font-medium">Statistics</Label>
               <div className="text-sm text-muted-foreground">
                 Showing {filteredProducts.length} of {products.length} products
               </div>
@@ -218,11 +256,16 @@ export default function ProductsPage() {
 
             <CardContent className="space-y-4">
               {product.thumbnailUrl && (
-                <img
-                  src={product.thumbnailUrl}
-                  alt={product.name || "Product image"}
-                  className="w-full h-40 object-cover rounded-lg"
-                />
+                <div className="relative w-full h-48 overflow-hidden rounded-lg bg-gray-50">
+                  <Image
+                    src={product.thumbnailUrl}
+                    alt={product.name || "Product image"}
+                    fill
+                    className="object-contain"
+                    quality={100}
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                  />
+                </div>
               )}
 
               <div className="space-y-2">

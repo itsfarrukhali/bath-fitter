@@ -8,7 +8,6 @@ import {
   ArrowLeft,
   Edit,
   Trash2,
-  Plus,
   Image as ImageIcon,
   Loader2,
 } from "lucide-react";
@@ -20,6 +19,7 @@ import CreateVariantModal from "@/components/admin/variants/create-variant-modal
 import EditVariantModal from "@/components/admin/variants/edit-variant-modal";
 import DeleteVariantModal from "@/components/admin/variants/delete-variant-modal";
 import { Product, ProductVariant } from "@/types/products";
+import Image from "next/image";
 
 export default function ProductVariantsPage() {
   const params = useParams();
@@ -29,6 +29,10 @@ export default function ProductVariantsPage() {
   const [product, setProduct] = useState<Product | null>(null);
   const [variants, setVariants] = useState<ProductVariant[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(
@@ -55,9 +59,15 @@ export default function ProductVariantsPage() {
       if (variantsResponse.data.success) {
         setVariants(variantsResponse.data.data);
       }
-    } catch (error) {
-      console.error("Error fetching data:", error);
-      toast.error("Failed to load product data");
+    } catch (err: unknown) {
+      if (err instanceof AxiosError) {
+        setError(err.response?.data?.message || "Failed to fetch variant");
+      } else if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError("Failed to fetch variant");
+      }
+      toast.error("Failed to fetch variant");
     } finally {
       setLoading(false);
     }
@@ -92,6 +102,20 @@ export default function ProductVariantsPage() {
     );
   }
 
+  if (error) {
+    <div className="p-4 border border-destructive/50 rounded-md bg-destructive/10">
+      <p className="text-destructive">{error}</p>
+      <Button
+        variant="outline"
+        size="sm"
+        className="mt-2 cursor-pointer"
+        onClick={fetchProductAndVariants}
+      >
+        Try Again
+      </Button>
+    </div>;
+  }
+
   return (
     <div className="container mx-auto py-6 space-y-6">
       {/* Header */}
@@ -124,6 +148,8 @@ export default function ProductVariantsPage() {
           {variants.length} variant{variants.length !== 1 ? "s" : ""}
         </p>
         <CreateVariantModal
+          open={showCreateModal}
+          onClose={() => setShowCreateModal(false)}
           product={product}
           onVariantCreated={fetchProductAndVariants}
         />
@@ -138,10 +164,12 @@ export default function ProductVariantsPage() {
                 {/* Variant Image */}
                 <div className="aspect-square bg-muted rounded-lg flex items-center justify-center">
                   {variant.imageUrl ? (
-                    <img
+                    <Image
                       src={variant.imageUrl}
                       alt={variant.colorName}
                       className="w-full h-full object-cover rounded-lg"
+                      width={80}
+                      height={80}
                     />
                   ) : (
                     <ImageIcon className="h-12 w-12 text-muted-foreground" />
@@ -206,13 +234,13 @@ export default function ProductVariantsPage() {
         <>
           <EditVariantModal
             open={editModalOpen}
-            onOpenChange={setEditModalOpen}
+            onClose={() => setEditModalOpen(false)}
             variant={selectedVariant}
             onVariantUpdated={fetchProductAndVariants}
           />
           <DeleteVariantModal
             open={deleteModalOpen}
-            onOpenChange={setDeleteModalOpen}
+            onClose={() => setDeleteModalOpen(false)}
             variant={selectedVariant}
             onVariantDeleted={fetchProductAndVariants}
           />

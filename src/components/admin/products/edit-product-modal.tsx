@@ -25,6 +25,7 @@ import {
 import { toast } from "sonner";
 import { Product } from "@/types/products";
 import { Category } from "@/types/category";
+import Image from "next/image";
 
 interface Props {
   open: boolean;
@@ -56,7 +57,6 @@ export default function EditProductModal({
   const [selectedSubcategoryId, setSelectedSubcategoryId] = useState("");
   const [loading, setLoading] = useState(false);
   const [thumbnailUploading, setThumbnailUploading] = useState(false);
-  const [isSlugManual, setIsSlugManual] = useState(false);
 
   const selectedCategory = categories.find(
     (cat) => cat.id.toString() === selectedCategoryId
@@ -181,11 +181,15 @@ export default function EditProductModal({
                 {thumbnailUrl ? (
                   <div className="space-y-3">
                     <div className="relative inline-block mx-auto">
-                      <img
-                        src={thumbnailUrl}
-                        alt="Product thumbnail"
-                        className="h-32 w-32 object-cover rounded-lg"
-                      />
+                      <div className="relative h-32 w-32">
+                        <Image
+                          src={thumbnailUrl}
+                          alt="Product thumbnail"
+                          fill
+                          className="object-cover rounded-lg"
+                          sizes="128px"
+                        />
+                      </div>
                       <Button
                         type="button"
                         variant="destructive"
@@ -326,10 +330,7 @@ export default function EditProductModal({
               <Input
                 id="slug"
                 value={slug}
-                onChange={(e) => {
-                  setSlug(e.target.value);
-                  setIsSlugManual(true);
-                }}
+                onChange={(e) => setSlug(e.target.value)}
                 disabled={loading || thumbnailUploading}
               />
             </div>

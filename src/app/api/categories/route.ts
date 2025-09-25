@@ -10,10 +10,40 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const showerTypeId = searchParams.get("showerTypeId");
     const includeProducts = searchParams.get("includeProducts") === "true";
+    const forAdmin = searchParams.get("forAdmin") === "true"; // New parameter
+    const limit = searchParams.get("limit");
 
+    // If forAdmin=true, return all categories without showerTypeId requirement
+    if (forAdmin) {
+      const categories = await prisma.category.findMany({
+        include: {
+          showerType: {
+            select: { id: true, name: true, slug: true },
+          },
+          _count: {
+            select: {
+              products: true,
+              subcategories: true,
+            },
+          },
+        },
+        orderBy: { name: "asc" },
+        ...(limit && { take: parseInt(limit) }),
+      });
+
+      return NextResponse.json({
+        success: true,
+        data: categories,
+      });
+    }
+
+    // Original logic for customer-facing API
     if (!showerTypeId) {
       return NextResponse.json(
-        { success: false, message: "showerTypeId is required" },
+        {
+          success: false,
+          message: "showerTypeId is required for customer-facing API",
+        },
         { status: 400 }
       );
     }
@@ -21,9 +51,11 @@ export async function GET(request: NextRequest) {
     const categories = await prisma.category.findMany({
       where: {
         showerTypeId: parseInt(showerTypeId),
-        products: {
-          some: {}, // Only categories that have products
-        },
+        ...(includeProducts && {
+          products: {
+            some: {}, // Only categories that have products
+          },
+        }),
       },
       include: {
         showerType: {
@@ -65,18 +97,29 @@ export async function GET(request: NextRequest) {
       orderBy: { name: "asc" },
     });
 
+    // Type-safe filter function
+    interface SubcategoryWithProducts {
+      products?: Array<{ variants: Array<unknown> }>;
+    }
+
+    interface CategoryWithRelations {
+      products: Array<unknown>;
+      subcategories?: SubcategoryWithProducts[];
+    }
+
     // Filter out categories that have no products after including variants condition
-    const filteredCategories = categories.filter((category) => {
-      const hasDirectProducts =
-        category.products && category.products.length > 0;
+    const filteredCategories = (categories as CategoryWithRelations[]).filter(
+      (category) => {
+        const hasDirectProducts =
+          category.products && category.products.length > 0;
 
-      // Type-safe check for subcategory products
-      const hasSubcategoryProducts = category.subcategories?.some(
-        (sub: any) => sub.products && sub.products.length > 0
-      );
+        const hasSubcategoryProducts = category.subcategories?.some(
+          (sub) => sub.products && sub.products.length > 0
+        );
 
-      return hasDirectProducts || hasSubcategoryProducts;
-    });
+        return hasDirectProducts || hasSubcategoryProducts;
+      }
+    );
 
     return NextResponse.json({
       success: true,

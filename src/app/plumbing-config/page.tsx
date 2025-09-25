@@ -1,7 +1,7 @@
 // app/plumbing-config/page.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Check, Loader2, Wrench } from "lucide-react";
 import { motion } from "framer-motion";
@@ -28,24 +28,18 @@ export default function PlumbingConfigPage() {
     {}
   );
 
-  useEffect(() => {
-    loadConfiguration();
-  }, []);
-
-  const loadConfiguration = () => {
+  const loadConfiguration = useCallback(() => {
     try {
       const config = sessionStorage.getItem("showerConfig");
       if (config) {
         const parsed: SessionConfig = JSON.parse(config);
         setConfiguration(parsed);
 
-        // Check if we have the required data
         if (!parsed.showerTypeId) {
           router.push("/shower-type");
           return;
         }
       } else {
-        // No configuration found, redirect to start
         router.push("/project-type");
       }
     } catch (err) {
@@ -54,7 +48,11 @@ export default function PlumbingConfigPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [router]);
+
+  useEffect(() => {
+    loadConfiguration();
+  }, [loadConfiguration]);
 
   const plumbingConfigs: PlumbingConfig[] = [
     {
