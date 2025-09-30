@@ -168,6 +168,7 @@ export default function CreateVariantModal({
                       type="button"
                       variant="outline"
                       size="sm"
+                      className="cursor-pointer"
                       onClick={() =>
                         document.getElementById("variant-image-upload")?.click()
                       }
@@ -205,7 +206,7 @@ export default function CreateVariantModal({
                         document.getElementById("variant-image-upload")?.click()
                       }
                       disabled={imageUploading}
-                      className="flex items-center gap-2"
+                      className="cursor-pointer"
                     >
                       {imageUploading ? (
                         <>

@@ -43,7 +43,7 @@ export default function CategoriesPage() {
     setError(null);
     try {
       const { data } = await axios.get<CategoryResponse>(
-        `/api/categories?page=${page}&limit=6`
+        `/api/categories?forAdmin=true&page=${page}&limit=6`
       );
 
       if (!data.success) throw new Error(data.message);
@@ -174,7 +174,7 @@ export default function CategoriesPage() {
 
                 <Separator className="my-4" />
 
-                {cat.hasSubcategories && cat.subcategories.length > 0 ? (
+                {cat.hasSubcategories && cat.subcategories?.length > 0 ? (
                   <Accordion type="single" collapsible className="w-full">
                     <AccordionItem value="subcategories">
                       <AccordionTrigger className="text-sm py-2">

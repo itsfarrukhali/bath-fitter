@@ -80,7 +80,7 @@ export default function ProductsPage() {
   const fetchProducts = async () => {
     try {
       setLoading(true);
-      const { data } = await axios.get("/api/products?limit=100");
+      const { data } = await axios.get("/api/products?limit=300");
       if (data.success) {
         setProducts(data.data);
       }

@@ -45,7 +45,7 @@ export default function WelcomeModal() {
 
         <Button
           onClick={handleStartDesign}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-2xl font-semibold transition-all duration-300 shadow-md hover:shadow-lg flex items-center justify-center space-x-2 mx-auto"
+          className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-2xl font-semibold transition-all duration-300 shadow-md hover:shadow-lg flex items-center justify-center space-x-2 mx-auto cursor-pointer"
         >
           <span>Start Designing</span>
           <ArrowRight className="w-5 h-5" />

@@ -5,8 +5,14 @@ import { motion } from "framer-motion";
 import { Sparkles, Palette, Wrench } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { useRouter } from "next/navigation";
 
 export default function HeroSection() {
+  const router = useRouter();
+
+  const handleGetStarted = () => {
+    router.push("/project-type");
+  };
   return (
     <section className="relative min-h-screen overflow-hidden flex items-center">
       {/* Background Video */}
@@ -42,8 +48,9 @@ export default function HeroSection() {
           </p>
 
           <Button
+            onClick={handleGetStarted}
             size="lg"
-            className="bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-md"
+            className="bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-md cursor-pointer"
           >
             Get Started
           </Button>

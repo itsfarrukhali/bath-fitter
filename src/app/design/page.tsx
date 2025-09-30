@@ -11,6 +11,7 @@ import {
   Loader2,
   Smartphone,
   Monitor,
+  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -32,7 +33,7 @@ export default function DesignPage() {
     selectedCategory: null,
     selectedSubcategory: null,
     selectedProducts: {},
-    baseImage: "/images/shower-base-main.png", // Default base image
+    baseImage: "/images/shower-base-main.png",
   });
   const [loading, setLoading] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
@@ -54,7 +55,6 @@ export default function DesignPage() {
 
       const configuration = JSON.parse(config);
 
-      // Fetch categories with products
       const categoriesResponse = await fetch(
         `/api/categories?showerTypeId=${configuration.showerTypeId}&includeProducts=true`
       );
@@ -92,11 +92,10 @@ export default function DesignPage() {
 
   const getBaseImage = (showerTypeId: number, plumbingConfig?: string) => {
     const showerTypeMap: { [key: number]: string } = {
-      1: "tub",
-      2: "curved",
-      3: "alcove",
-      4: "neo-angle",
       5: "tub-to-shower",
+      6: "curved",
+      7: "neo-angle",
+      8: "alcove",
     };
 
     const showerType = showerTypeMap[showerTypeId] || "main";
@@ -120,11 +119,8 @@ export default function DesignPage() {
   };
 
   const handleProductSelect = (product: Product, variant?: ProductVariant) => {
-    // Auto-select first variant if none provided
     const selectedVariant = variant || product.variants?.[0];
 
-    // Create a unique key for this product category/subcategory combination
-    // This ensures only one product per category/subcategory can be selected
     const productKey = product.subcategoryId
       ? `subcategory-${product.subcategoryId}`
       : `category-${product.categoryId}`;
@@ -187,10 +183,18 @@ export default function DesignPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-          <p className="text-muted-foreground">Loading your design...</p>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-muted/20">
+        <div className="text-center space-y-4">
+          <div className="relative">
+            <Loader2 className="h-12 w-12 animate-spin mx-auto text-primary" />
+            <div className="absolute inset-0 h-12 w-12 mx-auto rounded-full bg-primary/20 animate-ping" />
+          </div>
+          <div className="space-y-2">
+            <p className="text-lg font-medium">Loading your design...</p>
+            <p className="text-sm text-muted-foreground">
+              Preparing the perfect canvas
+            </p>
+          </div>
         </div>
       </div>
     );
@@ -198,27 +202,30 @@ export default function DesignPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header - Made responsive */}
-      <header className="border-b bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/60 sticky top-0 z-40">
-        <div className="container mx-auto px-2 sm:px-4 py-3">
+      {/* Enhanced Header with glassmorphism */}
+      <header className="border-b bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60 sticky top-0 z-40 shadow-sm">
+        <div className="container mx-auto px-4 py-3">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0">
-            <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto">
+            <div className="flex items-center gap-3 sm:gap-4 w-full sm:w-auto">
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => router.push("/plumbing-config")}
-                className="flex items-center gap-2 cursor-pointer"
+                className="flex items-center gap-2 hover:bg-muted/80 transition-colors cursor-pointer"
               >
                 <ArrowLeft className="h-4 w-4" />
                 <span className="hidden sm:inline">Back</span>
               </Button>
 
               <div className="flex-1 sm:flex-none">
-                <h1 className="text-lg sm:text-xl font-semibold leading-tight">
-                  Design Your Shower
-                </h1>
+                <div className="flex items-center gap-2">
+                  <Sparkles className="h-5 w-5 text-primary" />
+                  <h1 className="text-lg sm:text-xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
+                    Design Your Shower
+                  </h1>
+                </div>
                 {state.configuration.showerTypeName && (
-                  <p className="text-xs sm:text-sm text-muted-foreground truncate">
+                  <p className="text-xs sm:text-sm text-muted-foreground truncate mt-1">
                     {state.configuration.showerTypeName} •{" "}
                     {state.configuration.plumbingConfig} Plumbing
                   </p>
@@ -226,11 +233,11 @@ export default function DesignPage() {
               </div>
             </div>
 
-            <div className="flex items-center gap-1 sm:gap-2 w-full sm:w-auto justify-end">
+            <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
               <Button
                 variant="outline"
                 size="sm"
-                className="hidden md:flex items-center gap-2 cursor-pointer"
+                className="hidden md:flex items-center gap-2 hover:bg-muted/80 transition-colors cursor-pointer"
               >
                 {isMobile ? (
                   <Smartphone className="h-4 w-4" />
@@ -246,7 +253,7 @@ export default function DesignPage() {
                 variant="outline"
                 size="sm"
                 onClick={handleSaveDesign}
-                className="cursor-pointer"
+                className="hover:bg-muted/80 transition-colors cursor-pointer"
               >
                 <Save className="h-4 w-4 sm:mr-2" />
                 <span className="hidden sm:inline">Save</span>
@@ -255,16 +262,15 @@ export default function DesignPage() {
                 variant="outline"
                 size="sm"
                 onClick={() => toast.info("Print coming soon")}
-                className="cursor-pointer"
+                className="hover:bg-muted/80 transition-colors cursor-pointer"
               >
                 <Printer className="h-4 w-4 sm:mr-2" />
                 <span className="hidden sm:inline">Print</span>
               </Button>
               <Button
-                variant="outline"
                 size="sm"
                 onClick={() => toast.info("Export coming soon")}
-                className="cursor-pointer"
+                className="bg-primary hover:bg-primary/90 transition-colors cursor-pointer"
               >
                 <Download className="h-4 w-4 sm:mr-2" />
                 <span className="hidden sm:inline">Export</span>
@@ -275,7 +281,7 @@ export default function DesignPage() {
       </header>
 
       {/* Main Configurator */}
-      <div className="container mx-auto p-1 sm:p-2">
+      <div className="container mx-auto p-2 sm:p-4">
         {isMobile ? (
           <MobileConfigurator
             state={state}
