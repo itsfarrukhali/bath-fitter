@@ -9,6 +9,7 @@ export interface Subcategory {
   id: number;
   name: string;
   slug: string;
+  z_index?: number | null;
   _count: {
     products: number;
   };
@@ -22,6 +23,7 @@ export interface Product {
   description?: string;
   thumbnailUrl?: string;
   categoryId: number;
+  z_index?: number | null;
   subcategoryId?: number;
   category: {
     id: number;
@@ -59,6 +61,7 @@ export interface Category {
   slug: string;
   hasSubcategories: boolean;
   showerTypeId: number;
+  z_index?: number | null;
   showerType: ShowerType;
   subcategories: Subcategory[];
   products: Product[];
@@ -71,11 +74,12 @@ export interface Category {
 export interface CategoryResponse {
   success: boolean;
   data: Category[];
-  pagination: {
+  pagination?: {
     page: number;
     limit: number;
-    total: number;
+    totalCount: number;
     totalPages: number;
+    totalItems?: number;
   };
   message?: string;
 }
@@ -83,6 +87,7 @@ export interface CategoryResponse {
 export interface CategoryCreateData {
   name: string;
   slug: string;
+  z_index?: number | null;
   templateId: number;
   hasSubcategories: boolean;
   showerTypeId: number;
@@ -91,6 +96,7 @@ export interface CategoryCreateData {
 export interface CategoryUpdateData {
   name?: string;
   slug?: string;
+  z_index?: number | null;
   hasSubcategories?: boolean;
   showerTypeId?: number;
 }

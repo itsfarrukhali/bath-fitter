@@ -23,7 +23,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import type { Subcategory, Category } from "@/types/subcategory";
+import type { Subcategory } from "@/types/subcategory";
+import { Category } from "@/types/category";
 
 interface Props {
   onSubcategoryCreated: (subcategory: Subcategory) => void;
@@ -50,9 +51,15 @@ export default function CreateSubcategoryModal({
   const fetchCategories = async () => {
     setFetchingCategories(true);
     try {
-      const { data } = await axios.get("/api/categories");
+      const { data } = await axios.get(
+        "/api/categories?forAdmin=true&limit=1000"
+      );
       if (data.success) {
-        setCategories(data.data);
+        const showerTypes = data.data.map((category: Category) => ({
+          ...category,
+          showerType: category.showerType || { name: "Unknown Shower Type" },
+        }));
+        setCategories(showerTypes);
       }
     } catch (err: unknown) {
       if (err instanceof AxiosError) {
@@ -179,7 +186,7 @@ export default function CreateSubcategoryModal({
               <SelectContent>
                 {categories.map((category) => (
                   <SelectItem key={category.id} value={category.id.toString()}>
-                    {category.name}
+                    {category.name} ({category.showerType.name})
                   </SelectItem>
                 ))}
               </SelectContent>

@@ -112,6 +112,42 @@
   --sidebar-ring: oklch(0.488 0.243 264.376);
 }
 
+/* Print layout specific styles */
+.print-layout {
+  background: white !important;
+}
+
+/* Ensure no background colors in print */
+@media print {
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  
+  body {
+    background: white !important;
+    color: black !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  
+  /* Hide navigation and other non-print elements */
+  nav, 
+  .no-print,
+  [class*="navbar"],
+  [class*="Navbar"],
+  header,
+  footer {
+    display: none !important;
+  }
+}
+
+/* Compact text utility */
+.text-2xs {
+  font-size: 0.65rem;
+  line-height: 1.1;
+}
+
 
 @layer base {
   * {

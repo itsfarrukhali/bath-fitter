@@ -49,7 +49,7 @@ export default function CategoriesPage() {
       if (!data.success) throw new Error(data.message);
 
       setCategories(data.data);
-      setTotalPages(data.pagination.totalPages);
+      setTotalPages(data.pagination?.totalPages || 1);
     } catch (err: unknown) {
       if (err instanceof AxiosError) {
         setError(err.response?.data?.message || "Failed to fetch categories");

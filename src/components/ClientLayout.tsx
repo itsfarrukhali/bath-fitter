@@ -21,7 +21,9 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
     pathname.startsWith("/admin/project-types") ||
     pathname.startsWith("/admin/templates");
 
-  if (isDashboard) {
+  const isPrintPage = pathname.startsWith("/design/print");
+
+  if (isDashboard || isPrintPage) {
     return <div className="min-h-screen">{children}</div>;
   }
 
@@ -29,7 +31,7 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
   return (
     <div className="flex flex-col min-h-screen">
       <Navbar />
-      <main className="flex-grow">{children}</main>
+      <main>{children}</main>
     </div>
   );
 }

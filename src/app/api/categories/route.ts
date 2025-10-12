@@ -10,15 +10,37 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const showerTypeId = searchParams.get("showerTypeId");
     const includeProducts = searchParams.get("includeProducts") === "true";
-    const forAdmin = searchParams.get("forAdmin") === "true"; // New parameter
-    const limit = searchParams.get("limit");
+    const forAdmin = searchParams.get("forAdmin") === "true";
 
     // If forAdmin=true, return all categories without showerTypeId requirement
     if (forAdmin) {
+      const page = parseInt(searchParams.get("page") || "1");
+      const limit = parseInt(searchParams.get("limit") || "6");
+      const skip = (page - 1) * limit;
+
+      // Get total count for pagination
+      const totalCount = await prisma.category.count();
+
       const categories = await prisma.category.findMany({
+        skip,
+        take: limit,
         include: {
           showerType: {
             select: { id: true, name: true, slug: true },
+          },
+          subcategories: {
+            include: {
+              _count: {
+                select: { products: true },
+              },
+            },
+          },
+          products: {
+            include: {
+              _count: {
+                select: { variants: true },
+              },
+            },
           },
           _count: {
             select: {
@@ -28,16 +50,23 @@ export async function GET(request: NextRequest) {
           },
         },
         orderBy: { name: "asc" },
-        ...(limit && { take: parseInt(limit) }),
       });
+
+      const totalPages = Math.ceil(totalCount / limit);
 
       return NextResponse.json({
         success: true,
         data: categories,
+        pagination: {
+          page,
+          limit,
+          totalCount,
+          totalPages,
+        },
       });
     }
 
-    // Original logic for customer-facing API
+    // Original logic for customer-facing API - UPDATED WITH Z_INDEX
     if (!showerTypeId) {
       return NextResponse.json(
         {
@@ -78,7 +107,15 @@ export async function GET(request: NextRequest) {
                 },
               },
             }
-          : false,
+          : {
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+                z_index: true, // Ensure z_index included
+                categoryId: true,
+              },
+            },
         products: includeProducts
           ? {
               include: {
@@ -92,7 +129,15 @@ export async function GET(request: NextRequest) {
                 },
               },
             }
-          : false,
+          : {
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+                z_index: true,
+                categoryId: true,
+              },
+            },
       },
       orderBy: { name: "asc" },
     });
@@ -100,11 +145,13 @@ export async function GET(request: NextRequest) {
     // Type-safe filter function
     interface SubcategoryWithProducts {
       products?: Array<{ variants: Array<unknown> }>;
+      z_index?: number | null;
     }
 
     interface CategoryWithRelations {
-      products: Array<unknown>;
+      products?: Array<{ z_index?: number | null }>;
       subcategories?: SubcategoryWithProducts[];
+      z_index?: number | null;
     }
 
     // Filter out categories that have no products after including variants condition
@@ -143,7 +190,8 @@ export async function POST(request: NextRequest) {
     }
 
     const body: CategoryCreateData = await request.json();
-    const { name, slug, hasSubcategories, showerTypeId, templateId } = body;
+    const { name, slug, hasSubcategories, showerTypeId, templateId, z_index } =
+      body;
 
     // Validation
     if (!name || !slug || !showerTypeId) {
@@ -201,6 +249,7 @@ export async function POST(request: NextRequest) {
         hasSubcategories: hasSubcategories || false,
         showerTypeId,
         templateId,
+        z_index: z_index || 50, // Default to 50 if not provided
       },
       include: {
         showerType: { select: { id: true, name: true, slug: true } },

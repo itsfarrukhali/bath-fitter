@@ -6,11 +6,13 @@ export interface DesignConfiguration {
 }
 
 export interface Category {
+  description: string;
   id: number;
   name: string;
   slug: string;
   hasSubcategories: boolean;
   showerTypeId: number;
+  z_index?: number;
   showerType: {
     id: number;
     name: string;
@@ -24,6 +26,7 @@ export interface Subcategory {
   id: number;
   name: string;
   slug: string;
+  z_index?: number;
   categoryId: number;
   products: Product[];
 }
@@ -35,7 +38,10 @@ export interface Product {
   description?: string;
   thumbnailUrl?: string;
   imageUrl: string;
+  z_index?: number;
   categoryId: number;
+  category?: Category;
+  subcategory?: Subcategory;
   subcategoryId?: number;
   variants: ProductVariant[];
 }
