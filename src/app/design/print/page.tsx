@@ -2,6 +2,10 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useSearchParams } from "next/navigation";
+import NextImage from "next/image";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { ConfiguratorState } from "@/types/design";
 
 // Utility functions matching design page
@@ -201,29 +205,27 @@ export default function PrintPage() {
   if (error || !designData) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
-        <div className="text-center max-w-md mx-auto p-6">
-          <div className="text-red-500 text-6xl mb-4">⚠️</div>
-          <p className="text-red-600 text-lg mb-4">
-            {error || "No design data found"}
-          </p>
-          <p className="text-gray-600 mb-6">
-            Please go back to the design page and try printing again.
-          </p>
-          <div className="flex gap-4 justify-center">
-            <button
-              onClick={() => window.close()}
-              className="bg-gray-500 text-white px-6 py-2 rounded-lg hover:bg-gray-600 transition-colors cursor-pointer"
-            >
-              Close
-            </button>
-            <button
-              onClick={handleRetry}
-              className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors cursor-pointer"
-            >
-              Try Again
-            </button>
-          </div>
-        </div>
+        <Card className="text-center max-w-md mx-auto p-6">
+          <CardContent>
+            <div className="text-red-500 text-6xl mb-4">⚠️</div>
+            <CardTitle className="text-red-600 text-lg mb-4">
+              {error || "No design data found"}
+            </CardTitle>
+            <p className="text-gray-600 mb-6">
+              Please go back to the design page and try printing again.
+            </p>
+            <div className="flex gap-4 justify-center">
+              <Button
+                variant="outline"
+                onClick={() => window.close()}
+                className="bg-gray-500 text-white hover:bg-gray-600"
+              >
+                Close
+              </Button>
+              <Button onClick={handleRetry}>Try Again</Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -234,14 +236,13 @@ export default function PrintPage() {
         {/* Print Now Button - Only visible on screen */}
         {!hasPrinted && (
           <div className="no-print fixed top-4 right-4 z-50">
-            <button
+            <Button
               onClick={handlePrint}
               disabled={!imagesLoaded || printTriggered}
-              className={`px-6 py-3 rounded-lg shadow-lg transition-colors cursor-pointer font-semibold flex items-center gap-2 ${
-                imagesLoaded && !printTriggered
-                  ? "bg-blue-600 text-white hover:bg-blue-700"
-                  : "bg-gray-400 text-gray-200 cursor-not-allowed"
+              className={`flex items-center gap-2 ${
+                imagesLoaded && !printTriggered ? "" : "cursor-not-allowed"
               }`}
+              size="lg"
             >
               <span>🖨️</span>
               <span>
@@ -251,7 +252,7 @@ export default function PrintPage() {
                   ? "Print Now"
                   : "Loading Images..."}
               </span>
-            </button>
+            </Button>
             {!imagesLoaded && (
               <p className="text-xs text-gray-600 mt-2 text-center">
                 Please wait while images load...
@@ -291,8 +292,8 @@ export default function PrintPage() {
               background: white !important;
               color: black !important;
               font-family: Arial, Helvetica, sans-serif !important;
-              font-size: 14px !important; /* Increased from 12px */
-              line-height: 1.4 !important; /* Increased from 1.2 */
+              font-size: 14px !important;
+              line-height: 1.4 !important;
             }
 
             body * {
@@ -312,7 +313,7 @@ export default function PrintPage() {
               max-width: none !important;
               height: auto !important;
               margin: 0 !important;
-              padding: 0.3in !important; /* Increased from 0.2in */
+              padding: 0.3in !important;
               background: white !important;
               color: black !important;
               visibility: visible !important;
@@ -321,7 +322,7 @@ export default function PrintPage() {
             /* Page setup */
             @page {
               size: A4 portrait;
-              margin: 0.3in; /* Increased from 0.2in */
+              margin: 0.3in;
             }
 
             /* Ensure images are visible and properly sized */
@@ -360,7 +361,7 @@ export default function PrintPage() {
 
             /* Increased text sizes for print */
             .text-2xs {
-              font-size: 11px !important; /* Increased from 9px */
+              font-size: 11px !important;
               line-height: 1.3 !important;
             }
 
@@ -389,6 +390,11 @@ export default function PrintPage() {
               line-height: 1.3 !important;
             }
 
+            .text-3xl {
+              font-size: 28px !important;
+              line-height: 1.3 !important;
+            }
+
             /* Prevent page breaks */
             .print-content {
               page-break-inside: avoid !important;
@@ -402,9 +408,9 @@ export default function PrintPage() {
           /* Screen styles */
           @media screen {
             .print-content {
-              max-width: 6xl; /* Increased from 4xl */
+              max-width: 6xl;
               margin: 0 auto;
-              padding: 2rem; /* Increased from 1.5rem */
+              padding: 2rem;
               background: white;
               color: black;
               box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
@@ -412,7 +418,7 @@ export default function PrintPage() {
             }
 
             .text-2xs {
-              font-size: 0.75rem; /* Increased from 0.65rem */
+              font-size: 0.75rem;
               line-height: 1.2;
             }
           }
@@ -435,32 +441,31 @@ function PrintContentView({
   return (
     <div
       className={`mx-auto bg-white ${
-        hasManyProducts ? "max-w-7xl" : "max-w-6xl" // Increased max width
+        hasManyProducts ? "max-w-7xl" : "max-w-6xl"
       }`}
     >
       {/* Header - Larger font sizes */}
-      <div className="text-center mb-8 border-b border-gray-300 pb-6 print-section">
-        <h1 className="text-3xl font-bold mb-4 text-gray-900">
-          {" "}
-          {/* Increased from text-2xl */}
-          Shower Design Specification
-        </h1>
-        <div className="flex flex-wrap justify-center gap-6 text-base text-gray-700">
-          {" "}
-          {/* Increased from text-sm */}
-          <span className="text-lg">
-            {" "}
-            {/* Added larger text */}
-            <strong>Type:</strong> {designData.configuration.showerTypeName}
-          </span>
-          <span className="text-lg">
-            <strong>Plumbing:</strong> {designData.configuration.plumbingConfig}
-          </span>
-          <span className="text-lg">
-            <strong>Date:</strong> {new Date().toLocaleDateString()}
-          </span>
-        </div>
-      </div>
+      <Card className="text-center mb-8 border-b border-gray-300 pb-6 print-section">
+        <CardHeader>
+          <CardTitle className="text-3xl font-bold mb-4 text-gray-900">
+            Shower Design Specification
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap justify-center gap-6 text-base text-gray-700">
+            <Badge variant="secondary" className="text-lg">
+              <strong>Type:</strong> {designData.configuration.showerTypeName}
+            </Badge>
+            <Badge variant="secondary" className="text-lg">
+              <strong>Plumbing:</strong>{" "}
+              {designData.configuration.plumbingConfig}
+            </Badge>
+            <Badge variant="secondary" className="text-lg">
+              <strong>Date:</strong> {new Date().toLocaleDateString()}
+            </Badge>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Main Content */}
       <div
@@ -469,189 +474,169 @@ function PrintContentView({
         }`}
       >
         {/* Design Overview - Larger container */}
-        <div
+        <Card
           className={`print-section ${hasManyProducts ? "" : "lg:col-span-2"}`}
         >
-          <h2 className="text-2xl font-semibold mb-4 text-gray-900 text-center">
-            {" "}
-            {/* Increased from text-lg */}
-            Design Overview
-          </h2>
-          <div className="flex justify-center">
-            <div
-              className="border-2 border-gray-400 rounded-lg bg-gray-50" // Added border-2
-              style={{
-                width: hasManyProducts ? "450px" : "500px", // Increased from 300px/350px
-                height: hasManyProducts ? "450px" : "500px", // Increased from 300px/350px
-                maxWidth: "100%",
-              }}
-            >
-              <div className="relative w-full h-full p-6">
-                {" "}
-                {/* Increased padding */}
-                {/* Base Image */}
-                {imagesLoaded && (
-                  <>
-                    <img
-                      src={designData.baseImage}
-                      alt="Shower Base"
-                      className="w-full h-full object-contain"
-                      onLoad={(e) => {
-                        console.log("Base image rendered in DOM");
-                        // Force reflow to ensure image is visible
-                        (e.target as HTMLImageElement).style.display = "block";
-                      }}
-                      onError={(e) => {
-                        console.error(
-                          "Failed to render base image:",
-                          designData.baseImage
-                        );
-                        (e.target as HTMLImageElement).style.display = "none";
-                      }}
-                    />
+          <CardHeader>
+            <CardTitle className="text-2xl font-semibold text-gray-900 text-center">
+              Design Overview
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex justify-center">
+              <div
+                className="border-2 border-gray-400 rounded-lg bg-gray-50"
+                style={{
+                  width: hasManyProducts ? "450px" : "500px",
+                  height: hasManyProducts ? "450px" : "500px",
+                  maxWidth: "100%",
+                }}
+              >
+                <div className="relative w-full h-full p-6">
+                  {/* Base Image */}
+                  {imagesLoaded && (
+                    <>
+                      <NextImage
+                        src={designData.baseImage}
+                        alt="Shower Base"
+                        fill
+                        className="object-contain"
+                        onLoad={() => console.log("Base image rendered in DOM")}
+                        onError={() => {
+                          console.error(
+                            "Failed to render base image:",
+                            designData.baseImage
+                          );
+                        }}
+                      />
 
-                    {/* Product Overlays */}
-                    {Object.entries(designData.selectedProducts).map(
-                      ([key, selectedProduct]) => {
-                        const imageUrl =
-                          selectedProduct.variant?.imageUrl ||
-                          selectedProduct.product?.imageUrl;
-                        return imageUrl ? (
-                          <img
-                            key={key}
-                            src={imageUrl}
-                            alt={selectedProduct.product.name}
-                            className="absolute top-0 left-0 w-full h-full object-contain p-6" // Increased padding
-                            style={{
-                              zIndex: selectedProduct.product?.z_index || 10,
-                            }}
-                            onLoad={(e) => {
-                              console.log(
-                                `Product image rendered: ${selectedProduct.product.name}`
-                              );
-                              (e.target as HTMLImageElement).style.display =
-                                "block";
-                            }}
-                            onError={(e) => {
-                              console.error(
-                                "Failed to render product image:",
-                                imageUrl
-                              );
-                              (e.target as HTMLImageElement).style.display =
-                                "none";
-                            }}
-                          />
-                        ) : null;
-                      }
-                    )}
-                  </>
-                )}
+                      {/* Product Overlays */}
+                      {Object.entries(designData.selectedProducts).map(
+                        ([key, selectedProduct]) => {
+                          const imageUrl =
+                            selectedProduct.variant?.imageUrl ||
+                            selectedProduct.product?.imageUrl;
+                          return imageUrl ? (
+                            <NextImage
+                              key={key}
+                              src={imageUrl}
+                              alt={selectedProduct.product.name}
+                              fill
+                              className="object-contain p-6"
+                              style={{
+                                zIndex: selectedProduct.product?.z_index || 10,
+                              }}
+                              onLoad={() =>
+                                console.log(
+                                  `Product image rendered: ${selectedProduct.product.name}`
+                                )
+                              }
+                              onError={() => {
+                                console.error(
+                                  "Failed to render product image:",
+                                  imageUrl
+                                );
+                              }}
+                            />
+                          ) : null;
+                        }
+                      )}
+                    </>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
 
         {/* Selected Products - Larger text and spacing */}
-        <div
+        <Card
           className={`print-section ${hasManyProducts ? "" : "lg:col-span-2"}`}
         >
-          <h2 className="text-2xl font-semibold mb-4 text-gray-900 text-center">
-            {" "}
-            {/* Increased from text-lg */}
-            Selected Products ({Object.keys(designData.selectedProducts).length}
-            )
-          </h2>
+          <CardHeader>
+            <CardTitle className="text-2xl font-semibold text-gray-900 text-center">
+              Selected Products (
+              {Object.keys(designData.selectedProducts).length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div
+              className={`grid gap-4 ${
+                hasManyProducts ? "grid-cols-2" : "grid-cols-1"
+              }`}
+            >
+              {Object.entries(designData.selectedProducts).map(
+                ([key, selectedProduct], index) => (
+                  <Card key={key} className="border-2 border-gray-300 p-4">
+                    <CardContent className="p-0">
+                      <div className="flex items-start gap-3">
+                        <Badge className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold">
+                          {index + 1}
+                        </Badge>
 
-          <div
-            className={`grid gap-4 ${
-              hasManyProducts ? "grid-cols-2" : "grid-cols-1"
-            }`}
-          >
-            {Object.entries(designData.selectedProducts).map(
-              ([key, selectedProduct], index) => (
-                <div
-                  key={key}
-                  className="border-2 border-gray-300 rounded-lg p-4 bg-white text-sm" // Increased border and padding
-                >
-                  <div className="flex items-start gap-3">
-                    {" "}
-                    {/* Increased gap */}
-                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-sm font-bold">
-                      {" "}
-                      {/* Increased size */}
-                      {index + 1}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-lg mb-2 text-gray-900 leading-tight">
-                        {" "}
-                        {/* Increased from text-sm */}
-                        {selectedProduct.product?.name}
-                      </h3>
-                      <div className="flex items-center gap-2 mb-2">
-                        {" "}
-                        {/* Increased gap */}
-                        <span className="text-base text-gray-700">
-                          {" "}
-                          {/* Increased from text-xs */}
-                          <strong>Color:</strong>{" "}
-                          {selectedProduct.variant?.colorName || "Default"}
-                        </span>
-                        {selectedProduct.variant?.colorCode && (
-                          <span
-                            className="inline-block rounded-full border border-gray-400"
-                            style={{
-                              width: "16px", // Increased from 10px
-                              height: "16px", // Increased from 10px
-                              backgroundColor:
-                                selectedProduct.variant.colorCode,
-                            }}
-                          />
-                        )}
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-lg mb-2 text-gray-900 leading-tight">
+                            {selectedProduct.product?.name}
+                          </h3>
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="text-base text-gray-700">
+                              <strong>Color:</strong>{" "}
+                              {selectedProduct.variant?.colorName || "Default"}
+                            </span>
+                            {selectedProduct.variant?.colorCode && (
+                              <span
+                                className="inline-block rounded-full border border-gray-400"
+                                style={{
+                                  width: "16px",
+                                  height: "16px",
+                                  backgroundColor:
+                                    selectedProduct.variant.colorCode,
+                                }}
+                              />
+                            )}
+                          </div>
+                          {selectedProduct.product?.description && (
+                            <p className="text-sm text-gray-600 leading-tight">
+                              {selectedProduct.product.description.length > 80
+                                ? `${selectedProduct.product.description.substring(
+                                    0,
+                                    80
+                                  )}...`
+                                : selectedProduct.product.description}
+                            </p>
+                          )}
+                        </div>
+
+                        {!hasManyProducts &&
+                          selectedProduct.product?.thumbnailUrl && (
+                            <div className="flex-shrink-0">
+                              <NextImage
+                                src={selectedProduct.product.thumbnailUrl}
+                                alt={selectedProduct.product.name}
+                                width={60}
+                                height={60}
+                                className="rounded-lg border-2 border-gray-300 object-cover"
+                              />
+                            </div>
+                          )}
                       </div>
-                      {selectedProduct.product?.description && (
-                        <p className="text-sm text-gray-600 leading-tight">
-                          {" "}
-                          {/* Increased from text-2xs */}
-                          {selectedProduct.product.description.length > 80
-                            ? `${selectedProduct.product.description.substring(
-                                0,
-                                80
-                              )}...`
-                            : selectedProduct.product.description}
-                        </p>
-                      )}
-                    </div>
-                    {!hasManyProducts &&
-                      selectedProduct.product?.thumbnailUrl && (
-                        <img
-                          src={selectedProduct.product.thumbnailUrl}
-                          alt={selectedProduct.product.name}
-                          className="flex-shrink-0 rounded-lg border-2 border-gray-300" // Increased border
-                          style={{
-                            width: "60px", // Increased from 40px
-                            height: "60px", // Increased from 40px
-                            objectFit: "cover",
-                          }}
-                        />
-                      )}
-                  </div>
-                </div>
-              )
-            )}
-          </div>
-        </div>
+                    </CardContent>
+                  </Card>
+                )
+              )}
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Footer - Larger text */}
-      <div className="border-t-2 border-gray-300 pt-4 text-center print-section">
-        {" "}
-        {/* Increased border */}
-        <p className="text-sm text-gray-600">
-          {" "}
-          {/* Increased from text-xs */}
-          Home Care - We Make Your Dreams Into Reality
-        </p>
-      </div>
+      <Card className="border-t-2 border-gray-300 print-section">
+        <CardContent className="pt-4 text-center">
+          <p className="text-sm text-gray-600">
+            Home Care - We Make Your Dreams Into Reality
+          </p>
+        </CardContent>
+      </Card>
     </div>
   );
 }

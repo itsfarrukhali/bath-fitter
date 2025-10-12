@@ -12,13 +12,14 @@ import {
   Product,
   ProductVariant,
   Subcategory,
+  SelectedProduct,
 } from "@/types/design";
 import Image, { ImageProps } from "next/image";
 
 interface MobileConfiguratorProps {
   state: ConfiguratorState;
   onCategorySelect: (category: Category) => void;
-  onSubcategorySelect: (subcategory: Subcategory) => void;
+  onSubcategorySelect: (subcategory: Subcategory | null) => void;
   onProductSelect: (product: Product, variant?: ProductVariant) => void;
   onVariantSelect: (variant: ProductVariant, product: Product) => void;
   onRemoveProduct: (productKey: string) => void;
@@ -107,7 +108,7 @@ export default function MobileConfigurator({
     } else {
       // Clear subcategory if category doesn't have subcategories
       if (state.selectedSubcategory) {
-        onSubcategorySelect(null as any);
+        onSubcategorySelect(null);
       }
     }
   }, [state.selectedCategory, state.selectedSubcategory, onSubcategorySelect]);
@@ -459,7 +460,7 @@ function SelectedProductItem({
   onVariantSelect,
 }: {
   productKey: string;
-  selectedProduct: any;
+  selectedProduct: SelectedProduct;
   onRemoveProduct: (key: string) => void;
   onVariantSelect: (variant: ProductVariant, product: Product) => void;
 }) {

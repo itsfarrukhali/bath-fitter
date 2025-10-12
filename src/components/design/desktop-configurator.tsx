@@ -11,6 +11,7 @@ import {
   Product,
   ProductVariant,
   Subcategory,
+  SelectedProduct,
 } from "@/types/design";
 import Image, { ImageProps } from "next/image";
 
@@ -322,7 +323,7 @@ function SelectedProductItem({
   onVariantSelect,
 }: {
   productKey: string;
-  selectedProduct: any;
+  selectedProduct: SelectedProduct;
   onRemoveProduct: (key: string) => void;
   onVariantSelect: (variant: ProductVariant, product: Product) => void;
 }) {

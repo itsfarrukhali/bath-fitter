@@ -222,7 +222,7 @@ export default function DesignPage() {
       : `category-${product.categoryId}`;
 
     setState((prev) => {
-      let newSelectedProducts = { ...prev.selectedProducts };
+      const newSelectedProducts = { ...prev.selectedProducts };
 
       // Clean up any invalid entries first
       Object.keys(newSelectedProducts).forEach((key) => {

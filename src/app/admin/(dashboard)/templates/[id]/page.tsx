@@ -1,6 +1,7 @@
+// app/admin/(dashboard)/templates/[id]/page.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
 import axios, { AxiosError } from "axios";
 import {
@@ -61,7 +62,7 @@ export default function TemplateDetailPage() {
     );
   };
 
-  const fetchTemplate = async () => {
+  const fetchTemplate = useCallback(async () => {
     if (!id) return;
 
     setLoading(true);
@@ -92,13 +93,13 @@ export default function TemplateDetailPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
 
   useEffect(() => {
     if (id) {
       fetchTemplate();
     }
-  }, [id]);
+  }, [id, fetchTemplate]);
 
   // Calculate total counts for better stats
   const getTotalStats = () => {
