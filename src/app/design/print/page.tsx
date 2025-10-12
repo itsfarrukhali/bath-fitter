@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import NextImage from "next/image";
 import { Button } from "@/components/ui/button";
@@ -69,7 +69,8 @@ const preloadImages = (imageUrls: string[]): Promise<boolean> => {
   });
 };
 
-export default function PrintPage() {
+// Separate component that uses useSearchParams
+function PrintPageContent() {
   const searchParams = useSearchParams();
   const [designData, setDesignData] = useState<ConfiguratorState | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -403,6 +404,24 @@ export default function PrintPage() {
         }
       `}</style>
     </div>
+  );
+}
+
+// Main export with Suspense boundary
+export default function PrintPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-background">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Loading print preview...</p>
+          </div>
+        </div>
+      }
+    >
+      <PrintPageContent />
+    </Suspense>
   );
 }
 
