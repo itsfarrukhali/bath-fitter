@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createUnauthorizedResponse, getAuthenticatedUser } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { PlumbingConfig } from "@prisma/client";
 
 export async function GET(request: NextRequest) {
   try {
@@ -40,8 +41,14 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { colorName, colorCode, imageUrl, publicId, templateProductId } =
-      body;
+    const {
+      colorName,
+      colorCode,
+      imageUrl,
+      publicId,
+      templateProductId,
+      plumbingConfig = PlumbingConfig.LEFT, // Default to LEFT
+    } = body;
 
     if (!colorName || !imageUrl || !templateProductId) {
       return NextResponse.json(
@@ -92,6 +99,7 @@ export async function POST(request: NextRequest) {
         imageUrl: imageUrl.trim(),
         publicId: publicId || null,
         templateProductId,
+        plumbingConfig: plumbingConfig as PlumbingConfig,
       },
     });
 

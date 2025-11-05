@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from "react";
 import axios, { AxiosError } from "axios";
-import { Loader2, Plus, Upload, X } from "lucide-react";
+import { Loader2, Plus, Upload, X, HelpCircle } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -23,6 +23,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import generateSlug from "@/utils/generateSlug";
 import { Category } from "@/types/category";
@@ -42,6 +48,17 @@ interface UploadResponse {
   message?: string;
 }
 
+// Common z-index examples for reference
+const Z_INDEX_EXAMPLES = [
+  { name: "Base", value: 10 },
+  { name: "Walls", value: 20 },
+  { name: "Wainscoting", value: 25 },
+  { name: "Accessories", value: 35 },
+  { name: "Doors & Rods", value: 40 },
+  { name: "Ceilings", value: 50 },
+  { name: "Faucets", value: 60 },
+];
+
 export default function CreateProductModal({
   open,
   onClose,
@@ -55,6 +72,8 @@ export default function CreateProductModal({
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>("");
   const [selectedSubcategoryId, setSelectedSubcategoryId] =
     useState<string>("");
+  const [zIndex, setZIndex] = useState<number | "">("");
+  const [parentZIndex, setParentZIndex] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [isSlugManual, setIsSlugManual] = useState(false);
   const [thumbnailUploading, setThumbnailUploading] = useState(false);
@@ -63,6 +82,9 @@ export default function CreateProductModal({
     (cat) => cat.id.toString() === selectedCategoryId
   );
   const availableSubcategories = selectedCategory?.subcategories || [];
+  const selectedSubcategory = availableSubcategories.find(
+    (sub) => sub.id.toString() === selectedSubcategoryId
+  );
 
   useEffect(() => {
     if (open) {
@@ -72,6 +94,8 @@ export default function CreateProductModal({
       setThumbnailUrl("");
       setSelectedCategoryId("");
       setSelectedSubcategoryId("");
+      setZIndex("");
+      setParentZIndex(null);
       setIsSlugManual(false);
       setLoading(false);
       setThumbnailUploading(false);
@@ -83,6 +107,31 @@ export default function CreateProductModal({
       setSlug(generateSlug(name));
     }
   }, [name, isSlugManual]);
+
+  // Update parent Z-Index when category or subcategory changes
+  useEffect(() => {
+    if (
+      selectedSubcategory &&
+      selectedSubcategory.z_index !== null &&
+      selectedSubcategory.z_index !== undefined
+    ) {
+      setParentZIndex(selectedSubcategory.z_index);
+      if (zIndex === "") {
+        setZIndex(selectedSubcategory.z_index);
+      }
+    } else if (
+      selectedCategory &&
+      selectedCategory.z_index !== null &&
+      selectedCategory.z_index !== undefined
+    ) {
+      setParentZIndex(selectedCategory.z_index);
+      if (zIndex === "") {
+        setZIndex(selectedCategory.z_index);
+      }
+    } else {
+      setParentZIndex(null);
+    }
+  }, [selectedCategory, selectedSubcategory, zIndex]);
 
   const handleThumbnailUpload = async (file: File) => {
     setThumbnailUploading(true);
@@ -140,6 +189,10 @@ export default function CreateProductModal({
       toast.error("Product thumbnail is required");
       return;
     }
+    if (zIndex !== "" && (zIndex < 0 || zIndex > 100)) {
+      toast.error("Z-Index must be between 0 and 100");
+      return;
+    }
 
     setLoading(true);
     try {
@@ -152,6 +205,7 @@ export default function CreateProductModal({
         subcategoryId: selectedSubcategoryId
           ? parseInt(selectedSubcategoryId)
           : undefined,
+        z_index: zIndex === "" ? null : zIndex,
       };
 
       const { data } = await axios.post("/api/products", productData);
@@ -171,6 +225,23 @@ export default function CreateProductModal({
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleZIndexChange = (value: string) => {
+    if (value === "") {
+      setZIndex("");
+    } else {
+      const numValue = parseInt(value);
+      if (!isNaN(numValue)) {
+        setZIndex(numValue);
+      }
+    }
+  };
+
+  const handleUseParentZIndex = () => {
+    if (parentZIndex !== null) {
+      setZIndex(parentZIndex);
     }
   };
 
@@ -300,6 +371,7 @@ export default function CreateProductModal({
                       value={category.id.toString()}
                     >
                       {category.name} ({category.showerType.name})
+                      {category.z_index && ` - Z:${category.z_index}`}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -325,12 +397,84 @@ export default function CreateProductModal({
                         value={subcategory.id.toString()}
                       >
                         {subcategory.name}
+                        {subcategory.z_index && ` - Z:${subcategory.z_index}`}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
             )}
+
+            {/* Z-Index Field */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Label htmlFor="z_index">Z-Index ?</Label>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <HelpCircle className="h-4 w-4 text-muted-foreground cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs">
+                      <p className="font-semibold mb-2">What is Z-Index?</p>
+                      <p className="text-sm mb-2">
+                        Z-Index determines the stacking order of elements in the
+                        3D configurator. Lower numbers render behind higher
+                        numbers.
+                      </p>
+                      <p className="text-xs text-muted-foreground mb-2">
+                        By default, products inherit Z-Index from their parent
+                        category/subcategory.
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Examples: Base (10), Walls (20), Wainscoting (25),
+                        Accessories (35), Doors & Rods (40), Ceilings (50),
+                        Faucets (60)
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+              <div className="flex gap-2">
+                <Input
+                  id="z_index"
+                  type="number"
+                  min="0"
+                  max="100"
+                  placeholder={
+                    parentZIndex !== null ? parentZIndex.toString() : "50"
+                  }
+                  value={zIndex}
+                  onChange={(e) => handleZIndexChange(e.target.value)}
+                  className="flex-1"
+                />
+                {parentZIndex !== null && zIndex !== parentZIndex && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleUseParentZIndex}
+                    className="whitespace-nowrap cursor-pointer"
+                  >
+                    Use Parent ({parentZIndex})
+                  </Button>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-1 text-xs text-muted-foreground">
+                <span>Common values:</span>
+                {Z_INDEX_EXAMPLES.map((example, index) => (
+                  <span key={example.name} className="flex items-center">
+                    {example.name} ({example.value})
+                    {index < Z_INDEX_EXAMPLES.length - 1 && <span>,</span>}
+                  </span>
+                ))}
+              </div>
+              {parentZIndex !== null && (
+                <p className="text-xs text-blue-600">
+                  Parent {selectedSubcategory ? "Subcategory" : "Category"}{" "}
+                  Z-Index: {parentZIndex}
+                </p>
+              )}
+            </div>
 
             {/* Product Details */}
             <div className="space-y-2">

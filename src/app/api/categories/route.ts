@@ -1,5 +1,6 @@
 // app/api/categories/route.ts
 import { NextRequest, NextResponse } from "next/server";
+import { PlumbingConfig, Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { CategoryCreateData } from "@/types/category";
 import { getAuthenticatedUser, createUnauthorizedResponse } from "@/lib/auth";
@@ -11,6 +12,34 @@ export async function GET(request: NextRequest) {
     const showerTypeId = searchParams.get("showerTypeId");
     const includeProducts = searchParams.get("includeProducts") === "true";
     const forAdmin = searchParams.get("forAdmin") === "true";
+    const plumbingConfig = searchParams.get("plumbingConfig");
+
+    const normalizedPlumbingConfig = plumbingConfig
+      ? (plumbingConfig.toUpperCase() as PlumbingConfig)
+      : undefined;
+    const isValidPlumbingConfig = normalizedPlumbingConfig
+      ? Object.values(PlumbingConfig).includes(normalizedPlumbingConfig)
+      : undefined;
+
+    const plumbingVariantFilter: Prisma.ProductVariantWhereInput | undefined =
+      isValidPlumbingConfig
+        ? {
+            OR: [
+              { plumbing_config: normalizedPlumbingConfig },
+              { plumbing_config: PlumbingConfig.BOTH },
+              { plumbing_config: PlumbingConfig.LEFT },
+              { plumbing_config: PlumbingConfig.RIGHT },
+              { plumbing_config: null },
+            ],
+          }
+        : {
+            OR: [
+              { plumbing_config: PlumbingConfig.BOTH },
+              { plumbing_config: PlumbingConfig.LEFT },
+              { plumbing_config: PlumbingConfig.RIGHT },
+              { plumbing_config: null },
+            ],
+          };
 
     // If forAdmin=true, return all categories without showerTypeId requirement
     if (forAdmin) {
@@ -34,6 +63,7 @@ export async function GET(request: NextRequest) {
                 select: { products: true },
               },
             },
+            orderBy: { z_index: "asc" },
           },
           products: {
             include: {
@@ -41,6 +71,7 @@ export async function GET(request: NextRequest) {
                 select: { variants: true },
               },
             },
+            orderBy: { z_index: "asc" },
           },
           _count: {
             select: {
@@ -49,7 +80,7 @@ export async function GET(request: NextRequest) {
             },
           },
         },
-        orderBy: { name: "asc" },
+        orderBy: [{ z_index: "asc" }, { name: "asc" }],
       });
 
       const totalPages = Math.ceil(totalCount / limit);
@@ -66,7 +97,7 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Original logic for customer-facing API - UPDATED WITH Z_INDEX
+    // Original logic for customer-facing API
     if (!showerTypeId) {
       return NextResponse.json(
         {
@@ -82,7 +113,7 @@ export async function GET(request: NextRequest) {
         showerTypeId: parseInt(showerTypeId),
         ...(includeProducts && {
           products: {
-            some: {}, // Only categories that have products
+            some: {},
           },
         }),
       },
@@ -96,38 +127,19 @@ export async function GET(request: NextRequest) {
                 products: {
                   include: {
                     variants: {
+                      where: plumbingVariantFilter,
                       orderBy: { colorName: "asc" },
                     },
                   },
                   where: {
                     variants: {
-                      some: {}, // Only products that have variants
+                      some: {},
                     },
                   },
+                  orderBy: { z_index: "asc" },
                 },
               },
-            }
-          : {
-              select: {
-                id: true,
-                name: true,
-                slug: true,
-                z_index: true, // Ensure z_index included
-                categoryId: true,
-              },
-            },
-        products: includeProducts
-          ? {
-              include: {
-                variants: {
-                  orderBy: { colorName: "asc" },
-                },
-              },
-              where: {
-                variants: {
-                  some: {}, // Only products that have variants
-                },
-              },
+              orderBy: { z_index: "asc" },
             }
           : {
               select: {
@@ -137,9 +149,35 @@ export async function GET(request: NextRequest) {
                 z_index: true,
                 categoryId: true,
               },
+              orderBy: { z_index: "asc" },
+            },
+        products: includeProducts
+          ? {
+              include: {
+                variants: {
+                  where: plumbingVariantFilter,
+                  orderBy: { colorName: "asc" },
+                },
+              },
+              where: {
+                variants: {
+                  some: {},
+                },
+              },
+              orderBy: { z_index: "asc" },
+            }
+          : {
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+                z_index: true,
+                categoryId: true,
+              },
+              orderBy: { z_index: "asc" },
             },
       },
-      orderBy: { name: "asc" },
+      orderBy: [{ z_index: "asc" }, { name: "asc" }],
     });
 
     // Type-safe filter function
@@ -181,7 +219,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST - Create a new category
+// POST - Create a new category (updated with z_index validation)
 export async function POST(request: NextRequest) {
   try {
     const authUser = await getAuthenticatedUser(request);
@@ -198,7 +236,28 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          message: "Name, slug, and showerTypeId are required",
+          message: "Name, Slug, and Shower Type Id are required",
+        },
+        { status: 400 }
+      );
+    }
+
+    // Validate z_index range if provided
+    if (z_index !== undefined && z_index !== null) {
+      if (z_index < 0 || z_index > 100) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: "Z-Index must be between 0 and 100",
+          },
+          { status: 400 }
+        );
+      }
+    } else {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Z-Index is required",
         },
         { status: 400 }
       );
@@ -249,7 +308,7 @@ export async function POST(request: NextRequest) {
         hasSubcategories: hasSubcategories || false,
         showerTypeId,
         templateId,
-        z_index: z_index || 50, // Default to 50 if not provided
+        z_index: z_index ?? 50,
       },
       include: {
         showerType: { select: { id: true, name: true, slug: true } },

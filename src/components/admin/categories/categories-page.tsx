@@ -1,9 +1,9 @@
-// app/categories/page.tsx
+// src/components/admin/categories/categories-page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
 import axios, { AxiosError } from "axios";
-import { Folder, FolderTree, Package } from "lucide-react";
+import { Folder, FolderTree, Package, Layers } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -26,7 +26,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 
 import type { Category, CategoryResponse } from "@/types/category";
-import CategoryModal from "./create-category-modal";
+import CreateCategoryModal from "./create-category-modal";
 import EditCategoryModal from "./edit-category-modal";
 import DeleteCategoryModal from "./delete-category-modal";
 
@@ -70,7 +70,7 @@ export default function CategoriesPage() {
 
   const handleCategoryCreated = (newCategory: Category) => {
     setCategories((prev) => [newCategory, ...prev]);
-    setPage(1); // Reset to first page when a new category is added
+    setPage(1);
   };
 
   const handleCategoryUpdated = (updatedCategory: Category) => {
@@ -93,7 +93,7 @@ export default function CategoriesPage() {
             Manage product categories for your shower configurator
           </p>
         </div>
-        <CategoryModal onCategoryCreated={handleCategoryCreated} />
+        <CreateCategoryModal onCategoryCreated={handleCategoryCreated} />
       </div>
 
       <Separator />
@@ -131,7 +131,7 @@ export default function CategoriesPage() {
           <p className="text-muted-foreground mb-4">
             Get started by creating your first category
           </p>
-          <CategoryModal onCategoryCreated={handleCategoryCreated} />
+          <CreateCategoryModal onCategoryCreated={handleCategoryCreated} />
         </div>
       ) : (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -155,10 +155,20 @@ export default function CategoriesPage() {
                 </div>
               </CardHeader>
               <CardContent className="p-4">
-                <div className="mb-4">
-                  <div className="flex items-center justify-between text-sm mb-2">
+                <div className="mb-4 space-y-2">
+                  <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Shower Type</span>
                     <Badge variant="outline">{cat.showerType.name}</Badge>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Z-Index</span>
+                    <Badge
+                      variant="secondary"
+                      className="flex items-center gap-1"
+                    >
+                      <Layers className="h-3 w-3" />
+                      {cat.z_index ?? "Not set"}
+                    </Badge>
                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">
@@ -190,7 +200,14 @@ export default function CategoriesPage() {
                               key={sub.id}
                               className="flex items-center justify-between rounded-md bg-muted/50 p-2 text-sm"
                             >
-                              <span>{sub.name}</span>
+                              <div className="flex items-center gap-2">
+                                <span>{sub.name}</span>
+                                {sub.z_index && (
+                                  <Badge variant="outline" className="text-xs">
+                                    Z: {sub.z_index}
+                                  </Badge>
+                                )}
+                              </div>
                               <Badge variant="outline">
                                 {sub._count.products} products
                               </Badge>
@@ -224,10 +241,15 @@ export default function CategoriesPage() {
                         key={product.id}
                         className="flex items-center justify-between text-xs p-1 bg-muted/30 rounded"
                       >
-                        <span className="flex items-center gap-1">
+                        <div className="flex items-center gap-1">
                           <Package className="h-3 w-3" />
-                          {product.name}
-                        </span>
+                          <span>{product.name}</span>
+                          {product.z_index && (
+                            <Badge variant="secondary" className="text-xs">
+                              Z: {product.z_index}
+                            </Badge>
+                          )}
+                        </div>
                         <Badge variant="secondary">
                           {product._count.variants} variants
                         </Badge>

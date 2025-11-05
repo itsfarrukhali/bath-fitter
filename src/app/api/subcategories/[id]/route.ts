@@ -32,6 +32,7 @@ export async function GET(
               select: { variants: true },
             },
           },
+          orderBy: { z_index: "asc" },
         },
         _count: {
           select: {
@@ -61,7 +62,7 @@ export async function GET(
   }
 }
 
-// PUT - Update a subcategory
+// PUT - Update a subcategory (updated with z_index)
 export async function PUT(
   request: NextRequest,
   segmentData: { params: Params }
@@ -75,7 +76,7 @@ export async function PUT(
     const params = await segmentData.params;
     const { id } = params;
     const body: SubcategoryUpdateData = await request.json();
-    const { name, slug, categoryId } = body;
+    const { name, slug, categoryId, z_index } = body;
 
     // Check if subcategory exists
     const existingSubcategory = await prisma.subcategory.findUnique({
@@ -87,6 +88,19 @@ export async function PUT(
         { success: false, message: "Subcategory not found" },
         { status: 404 }
       );
+    }
+
+    // Validate z_index range if provided
+    if (z_index !== undefined && z_index !== null) {
+      if (z_index < 0 || z_index > 100) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: "Z-Index must be between 0 and 100",
+          },
+          { status: 400 }
+        );
+      }
     }
 
     // Check if category exists if being updated
@@ -109,7 +123,7 @@ export async function PUT(
         where: {
           slug,
           categoryId: categoryId || existingSubcategory.categoryId,
-          id: { not: parseInt(id) }, // exclude current subcategory
+          id: { not: parseInt(id) },
         },
       });
 
@@ -131,6 +145,7 @@ export async function PUT(
         ...(name && { name }),
         ...(slug && { slug }),
         ...(categoryId && { categoryId }),
+        ...(z_index !== undefined && { z_index }),
       },
       include: {
         category: {
@@ -146,6 +161,7 @@ export async function PUT(
               select: { variants: true },
             },
           },
+          orderBy: { z_index: "asc" },
         },
         _count: {
           select: {
@@ -169,7 +185,7 @@ export async function PUT(
   }
 }
 
-// DELETE - Delete a subcategory
+// DELETE - Delete a subcategory (no changes needed)
 export async function DELETE(
   request: NextRequest,
   segmentData: { params: Params }

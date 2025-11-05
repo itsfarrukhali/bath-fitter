@@ -35,6 +35,7 @@ export interface TemplateVariant {
   imageUrl: string;
   publicId?: string;
   templateProductId: number;
+  plumbingConfig: PlumbingConfig;
   templateProduct: TemplateProduct;
   createdAt: Date;
   updatedAt: Date;
@@ -63,8 +64,41 @@ export interface TemplateCreateData {
 }
 
 export interface TemplateInstanceCreateData {
-  templateId: number;
-  showerTypeId: number;
+  templateCategoryId: number;
+  showerTypeIds: number[];
   customName?: string;
-  customSlug?: string;
+  plumbingOptions: PlumbingOptions; // NEW
+}
+
+export interface PlumbingOptions {
+  createForLeft: boolean;
+  createForRight: boolean;
+  mirrorImages: boolean;
+}
+
+export enum PlumbingConfig {
+  LEFT = "LEFT",
+  RIGHT = "RIGHT",
+  BOTH = "BOTH",
+}
+
+export interface InstantiationProgress {
+  showerTypeId: number;
+  showerTypeName: string;
+  plumbingConfig: PlumbingConfig;
+  status: "pending" | "processing" | "success" | "error";
+  message?: string;
+  categoryId?: number;
+}
+
+export interface InstantiationTask {
+  id: string;
+  templateId: number;
+  templateName: string;
+  progress: InstantiationProgress[];
+  startedAt: Date;
+  completedAt?: Date;
+  status: "running" | "completed" | "failed";
+  successCount: number;
+  errorCount: number;
 }

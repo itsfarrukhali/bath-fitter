@@ -58,7 +58,7 @@ export async function PUT(
     const params = await segmentData.params;
     const { id } = params;
     const body = await request.json();
-    const { colorName, colorCode, imageUrl, publicId } = body;
+    const { colorName, colorCode, imageUrl, publicId, plumbingConfig } = body;
 
     // Check if template variant exists
     const existingVariant = await prisma.templateVariant.findUnique({
@@ -128,6 +128,7 @@ export async function PUT(
         colorCode: colorCode?.trim() || null,
         imageUrl: imageUrl || existingVariant.imageUrl,
         publicId: publicId || existingVariant.publicId,
+        plumbingConfig: plumbingConfig || existingVariant.plumbingConfig,
       },
       include: {
         templateProduct: {

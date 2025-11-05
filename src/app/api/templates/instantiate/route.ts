@@ -2,35 +2,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createUnauthorizedResponse, getAuthenticatedUser } from "@/lib/auth";
 import prisma from "@/lib/prisma";
-import { Prisma } from "@prisma/client";
+import { PlumbingConfig, PlumbingOptions } from "@/types/template";
+import { getPlumbingAdjustedImage } from "@/lib/cloudinary";
 
 interface InstantiateRequest {
   templateCategoryId: number;
   showerTypeIds: number[];
   customName?: string;
-}
-
-// Define proper interfaces for the template data
-interface TemplateVariantData {
-  id: number;
-  colorName: string;
-  colorCode?: string;
-  imageUrl: string;
-  publicId?: string;
-  templateProductId: number;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-interface TemplateProductData {
-  id: number;
-  name: string;
-  slug: string;
-  description?: string;
-  thumbnailUrl?: string;
-  templateCategoryId?: number;
-  templateSubcategoryId?: number;
-  templateVariants: TemplateVariantData[];
+  plumbingOptions: PlumbingOptions;
 }
 
 export async function POST(request: NextRequest) {
@@ -41,7 +20,19 @@ export async function POST(request: NextRequest) {
     }
 
     const body: InstantiateRequest = await request.json();
-    const { templateCategoryId, showerTypeIds, customName } = body;
+    const { templateCategoryId, showerTypeIds, customName, plumbingOptions } =
+      body;
+
+    // Validate plumbing options
+    if (!plumbingOptions.createForLeft && !plumbingOptions.createForRight) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "At least one plumbing option must be selected",
+        },
+        { status: 400 }
+      );
+    }
 
     // Get the template with all its relationships
     const template = await prisma.templateCategory.findUnique({
@@ -73,13 +64,14 @@ export async function POST(request: NextRequest) {
 
     const results: Array<{
       showerTypeId: number;
+      plumbingConfig: PlumbingConfig;
       success: boolean;
       message?: string;
       categoryId?: number;
     }> = [];
 
+    // Process each shower type
     for (const showerTypeId of showerTypeIds) {
-      // Check if shower type exists
       const showerType = await prisma.showerType.findUnique({
         where: { id: showerTypeId },
       });
@@ -87,77 +79,90 @@ export async function POST(request: NextRequest) {
       if (!showerType) {
         results.push({
           showerTypeId,
+          plumbingConfig: PlumbingConfig.LEFT,
           success: false,
           message: "Shower type not found",
         });
         continue;
       }
 
-      // Check if category already exists for this template and shower type
-      const existingCategory = await prisma.category.findFirst({
-        where: {
-          templateId: templateCategoryId,
-          showerTypeId: showerTypeId,
-        },
-      });
+      // Create categories for each selected plumbing configuration
+      const plumbingConfigs: PlumbingConfig[] = [];
+      if (plumbingOptions.createForLeft)
+        plumbingConfigs.push(PlumbingConfig.LEFT);
+      if (plumbingOptions.createForRight)
+        plumbingConfigs.push(PlumbingConfig.RIGHT);
 
-      if (existingCategory) {
-        results.push({
-          showerTypeId,
-          success: false,
-          message: `Template already instantiated for ${showerType.name}. Please delete existing instance first.`,
-        });
-        continue;
-      }
+      for (const plumbingConfig of plumbingConfigs) {
+        try {
+          // Check if category already exists
+          const existingCategory = await prisma.category.findFirst({
+            where: {
+              templateId: templateCategoryId,
+              showerTypeId: showerTypeId,
+              plumbingConfig: plumbingConfig,
+            },
+          });
 
-      // Create category instance
-      const category = await prisma.category.create({
-        data: {
-          name: customName || template.name,
-          slug: template.slug,
-          templateId: template.id,
-          showerTypeId: showerTypeId,
-          hasSubcategories: template.templateSubcategories.length > 0,
-        },
-      });
+          if (existingCategory) {
+            results.push({
+              showerTypeId,
+              plumbingConfig,
+              success: false,
+              message: `Template already instantiated for ${
+                showerType.name
+              } with ${plumbingConfig.toLowerCase()} plumbing.`,
+            });
+            continue;
+          }
 
-      // Create subcategory instances
-      for (const templateSubcategory of template.templateSubcategories) {
-        const subcategory = await prisma.subcategory.create({
-          data: {
-            name: templateSubcategory.name,
-            slug: templateSubcategory.slug,
-            templateId: templateSubcategory.id,
-            categoryId: category.id,
-          },
-        });
+          // Create category instance
+          const category = await prisma.category.create({
+            data: {
+              name: `${
+                customName || template.name
+              } - ${plumbingConfig.toLowerCase()}`,
+              slug: `${template.slug}-${plumbingConfig.toLowerCase()}`,
+              templateId: template.id,
+              showerTypeId: showerTypeId,
+              plumbingConfig: plumbingConfig,
+              hasSubcategories: template.templateSubcategories.length > 0,
+            },
+          });
 
-        // Create product instances for subcategory
-        for (const templateProduct of templateSubcategory.templateProducts) {
-          await createProductInstance(
-            templateProduct as TemplateProductData,
+          // Create subcategories and products
+          await createTemplateInstances(
+            template,
             category.id,
-            subcategory.id
+            plumbingConfig,
+            plumbingOptions.mirrorImages
           );
+
+          results.push({
+            showerTypeId,
+            plumbingConfig,
+            success: true,
+            categoryId: category.id,
+          });
+        } catch (error) {
+          console.error(
+            `Error creating instance for ${showerType.name} - ${plumbingConfig}:`,
+            error
+          );
+          results.push({
+            showerTypeId,
+            plumbingConfig,
+            success: false,
+            message: `Failed to create ${plumbingConfig.toLowerCase()} plumbing instance`,
+          });
         }
       }
-
-      // Create direct product instances for category
-      for (const templateProduct of template.templateProducts) {
-        await createProductInstance(
-          templateProduct as TemplateProductData,
-          category.id,
-          null
-        );
-      }
-
-      results.push({ showerTypeId, success: true, categoryId: category.id });
     }
 
     return NextResponse.json({
       success: true,
       data: results,
-      message: "Template instantiated successfully",
+      message: "Template instantiation completed",
     });
   } catch (error) {
     console.error("Error instantiating template:", error);
@@ -168,35 +173,93 @@ export async function POST(request: NextRequest) {
   }
 }
 
-async function createProductInstance(
-  templateProduct: TemplateProductData,
+async function createTemplateInstances(
+  template: any,
   categoryId: number,
-  subcategoryId: number | null
+  targetPlumbingConfig: PlumbingConfig,
+  mirrorImages: boolean
 ) {
-  // Use Prisma's proper type instead of 'any'
-  const productData: Prisma.ProductCreateInput = {
-    name: templateProduct.name,
-    slug: templateProduct.slug,
-    description: templateProduct.description,
-    thumbnailUrl: templateProduct.thumbnailUrl,
-    template: templateProduct.id
-      ? { connect: { id: templateProduct.id } }
-      : undefined,
-    category: { connect: { id: categoryId } },
-    ...(subcategoryId && { subcategory: { connect: { id: subcategoryId } } }),
-  };
+  // Create subcategory instances
+  for (const templateSubcategory of template.templateSubcategories) {
+    const subcategory = await prisma.subcategory.create({
+      data: {
+        name: templateSubcategory.name,
+        slug: templateSubcategory.slug,
+        templateId: templateSubcategory.id,
+        categoryId: categoryId,
+        plumbingConfig: targetPlumbingConfig,
+      },
+    });
 
+    // Create product instances for subcategory
+    for (const templateProduct of templateSubcategory.templateProducts) {
+      await createProductInstance(
+        templateProduct,
+        categoryId,
+        subcategory.id,
+        targetPlumbingConfig,
+        mirrorImages
+      );
+    }
+  }
+
+  // Create direct product instances for category
+  for (const templateProduct of template.templateProducts) {
+    await createProductInstance(
+      templateProduct,
+      categoryId,
+      null,
+      targetPlumbingConfig,
+      mirrorImages
+    );
+  }
+}
+
+async function createProductInstance(
+  templateProduct: any,
+  categoryId: number,
+  subcategoryId: number | null,
+  targetPlumbingConfig: PlumbingConfig,
+  mirrorImages: boolean
+) {
   const product = await prisma.product.create({
-    data: productData,
+    data: {
+      name: templateProduct.name,
+      slug: templateProduct.slug,
+      description: templateProduct.description,
+      thumbnailUrl: templateProduct.thumbnailUrl,
+      template: templateProduct.id
+        ? { connect: { id: templateProduct.id } }
+        : undefined,
+      category: { connect: { id: categoryId } },
+      ...(subcategoryId && { subcategory: { connect: { id: subcategoryId } } }),
+      plumbingConfig: targetPlumbingConfig,
+    },
   });
 
-  // Create variant instances
+  // Create variant instances with smart image handling
   for (const templateVariant of templateProduct.templateVariants) {
+    const variantPlumbingConfig =
+      templateVariant.plumbingConfig || PlumbingConfig.LEFT;
+
+    let finalImageUrl = templateVariant.imageUrl;
+
+    // Apply mirroring if requested and needed
+    if (mirrorImages) {
+      finalImageUrl = getPlumbingAdjustedImage(
+        templateVariant.imageUrl,
+        variantPlumbingConfig,
+        targetPlumbingConfig
+      );
+    }
+
     await prisma.productVariant.create({
       data: {
         colorName: templateVariant.colorName,
         colorCode: templateVariant.colorCode,
-        imageUrl: templateVariant.imageUrl,
+        imageUrl: finalImageUrl,
+        publicId: templateVariant.publicId,
+        plumbing_config: targetPlumbingConfig,
         templateVariant: templateVariant.id
           ? { connect: { id: templateVariant.id } }
           : undefined,

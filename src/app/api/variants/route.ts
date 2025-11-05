@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createUnauthorizedResponse, getAuthenticatedUser } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { PlumbingConfig } from "@prisma/client";
 
 interface VariantCreateData {
   colorName: string;
@@ -9,6 +10,7 @@ interface VariantCreateData {
   imageUrl: string;
   publicId?: string;
   productId: number;
+  plumbing_config?: PlumbingConfig | null;
 }
 
 export async function GET(request: NextRequest) {
@@ -60,13 +62,34 @@ export async function POST(request: NextRequest) {
     }
 
     const body: VariantCreateData = await request.json();
-    const { colorName, colorCode, imageUrl, publicId, productId } = body;
+    const {
+      colorName,
+      colorCode,
+      imageUrl,
+      publicId,
+      productId,
+      plumbing_config,
+    } = body;
 
     if (!colorName?.trim() || !imageUrl?.trim() || !productId) {
       return NextResponse.json(
         {
           success: false,
           message: "Color name, image URL, and product ID are required",
+        },
+        { status: 400 }
+      );
+    }
+
+    // Validate plumbing_config if provided
+    if (
+      plumbing_config &&
+      !Object.values(PlumbingConfig).includes(plumbing_config)
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Invalid plumbing configuration",
         },
         { status: 400 }
       );
@@ -111,6 +134,7 @@ export async function POST(request: NextRequest) {
         imageUrl: imageUrl.trim(),
         publicId: publicId || null,
         productId,
+        plumbing_config: plumbing_config || null,
       },
       include: {
         product: {

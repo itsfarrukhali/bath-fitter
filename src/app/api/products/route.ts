@@ -11,6 +11,7 @@ interface ProductCreateData {
   thumbnailUrl?: string;
   categoryId: number;
   subcategoryId?: number;
+  z_index?: number | null;
 }
 
 export async function GET(request: NextRequest) {
@@ -34,10 +35,21 @@ export async function GET(request: NextRequest) {
         take: limit,
         include: {
           category: {
-            select: { id: true, name: true, slug: true, showerTypeId: true },
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+              showerTypeId: true,
+              z_index: true,
+            },
           },
           subcategory: {
-            select: { id: true, name: true, slug: true },
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+              z_index: true,
+            },
           },
           variants: {
             orderBy: { colorName: "asc" },
@@ -46,7 +58,7 @@ export async function GET(request: NextRequest) {
             select: { variants: true },
           },
         },
-        orderBy: { name: "asc" },
+        orderBy: [{ z_index: "asc" }, { name: "asc" }],
       }),
       prisma.product.count({ where: whereClause }),
     ]);
@@ -78,8 +90,15 @@ export async function POST(request: NextRequest) {
     }
 
     const body: ProductCreateData = await request.json();
-    const { name, slug, description, thumbnailUrl, categoryId, subcategoryId } =
-      body;
+    const {
+      name,
+      slug,
+      description,
+      thumbnailUrl,
+      categoryId,
+      subcategoryId,
+      z_index,
+    } = body;
 
     if (!name?.trim() || !slug?.trim() || !categoryId) {
       return NextResponse.json(
@@ -88,7 +107,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate category exists
+    // Validate z_index range if provided
+    if (z_index !== undefined && z_index !== null) {
+      if (z_index < 0 || z_index > 100) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: "Z-Index must be between 0 and 100",
+          },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Validate category exists and get its z_index
     const category = await prisma.category.findUnique({
       where: { id: categoryId },
       include: { showerType: true },
@@ -101,9 +133,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate subcategory if provided
+    // Validate subcategory if provided and get its z_index
+    let subcategory = null;
     if (subcategoryId) {
-      const subcategory = await prisma.subcategory.findUnique({
+      subcategory = await prisma.subcategory.findUnique({
         where: { id: subcategoryId, categoryId },
       });
       if (!subcategory) {
@@ -132,6 +165,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Determine default z_index: use provided value, otherwise inherit from parent
+    let finalZIndex: number | null = null;
+    if (z_index !== undefined && z_index !== null) {
+      finalZIndex = z_index;
+    } else if (subcategory && subcategory.z_index !== null) {
+      finalZIndex = subcategory.z_index;
+    } else if (category.z_index !== null) {
+      finalZIndex = category.z_index;
+    } else {
+      finalZIndex = 50;
+    }
+
     const product = await prisma.product.create({
       data: {
         name: name.trim(),
@@ -140,13 +185,25 @@ export async function POST(request: NextRequest) {
         thumbnailUrl: thumbnailUrl?.trim() || null,
         categoryId,
         subcategoryId: subcategoryId || null,
+        z_index: finalZIndex,
       },
       include: {
         category: {
-          select: { id: true, name: true, slug: true, showerType: true },
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            showerType: true,
+            z_index: true,
+          },
         },
         subcategory: {
-          select: { id: true, name: true, slug: true },
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            z_index: true,
+          },
         },
         variants: true,
         _count: { select: { variants: true } },

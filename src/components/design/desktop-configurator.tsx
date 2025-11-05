@@ -14,6 +14,7 @@ import {
   SelectedProduct,
 } from "@/types/design";
 import Image, { ImageProps } from "next/image";
+import { PlumbingAwareImage } from "../plumbing-aware-image";
 
 interface DesktopConfiguratorProps {
   state: ConfiguratorState;
@@ -134,6 +135,7 @@ export default function DesktopConfigurator({
                   selectedProduct={selectedProduct}
                   onRemoveProduct={onRemoveProduct}
                   onVariantSelect={onVariantSelect}
+                  plumbingConfig={state.configuration.plumbingConfig}
                 />
               )
             )}
@@ -197,17 +199,18 @@ export default function DesktopConfigurator({
                 <div
                   key={productKey}
                   className="absolute inset-0"
-                  style={{
-                    zIndex,
-                    pointerEvents: "none",
-                  }}
+                  style={{ zIndex, pointerEvents: "none" }}
                 >
-                  <ImageWithFallback
+                  <PlumbingAwareImage
                     src={imageUrl}
                     alt={selectedProduct.product?.name || "Product"}
                     fill
                     className="object-contain p-6"
                     sizes="100vw"
+                    plumbingConfig={state.configuration.plumbingConfig}
+                    variantPlumbingConfig={
+                      selectedProduct.variant?.plumbing_config
+                    }
                   />
                 </div>
               );
@@ -285,6 +288,7 @@ export default function DesktopConfigurator({
                             onSelect={onProductSelect}
                             onVariantSelect={onVariantSelect}
                             getProductKey={getProductKey}
+                            plumbingConfig={state.configuration.plumbingConfig}
                           />
                         ))}
                       </div>
@@ -304,6 +308,7 @@ export default function DesktopConfigurator({
                       onSelect={onProductSelect}
                       onVariantSelect={onVariantSelect}
                       getProductKey={getProductKey}
+                      plumbingConfig={state.configuration.plumbingConfig}
                     />
                   ))}
                 </div>
@@ -321,11 +326,13 @@ function SelectedProductItem({
   selectedProduct,
   onRemoveProduct,
   onVariantSelect,
+  plumbingConfig,
 }: {
   productKey: string;
   selectedProduct: SelectedProduct;
   onRemoveProduct: (key: string) => void;
   onVariantSelect: (variant: ProductVariant, product: Product) => void;
+  plumbingConfig?: string;
 }) {
   if (!selectedProduct || !selectedProduct.product) return null; // Add guard
 
@@ -345,15 +352,14 @@ function SelectedProductItem({
         <div className="flex items-start gap-2 pr-6">
           <div className="flex-shrink-0 w-12 h-12 bg-gray-100 rounded overflow-hidden">
             {selectedProduct.product?.thumbnailUrl ? (
-              <Image
+              <PlumbingAwareImage
                 src={selectedProduct.product.thumbnailUrl}
                 alt={selectedProduct.product.name}
                 className="w-full h-full object-cover"
                 width={48}
                 height={48}
-                onError={(e) => {
-                  e.currentTarget.src = "/images/placeholder.png";
-                }}
+                plumbingConfig={plumbingConfig}
+                variantPlumbingConfig={selectedProduct.variant?.plumbing_config}
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-gray-400">
@@ -418,6 +424,7 @@ function ProductCard({
   selectedProduct,
   onSelect,
   onVariantSelect,
+  plumbingConfig,
 }: {
   product: Product;
   isSelected: boolean;
@@ -425,6 +432,7 @@ function ProductCard({
   onSelect: (product: Product, variant?: ProductVariant) => void;
   onVariantSelect: (variant: ProductVariant, product: Product) => void;
   getProductKey: (product: Product) => string;
+  plumbingConfig?: string;
 }) {
   const handleProductClick = () => {
     const firstVariant = product.variants?.[0];
@@ -442,15 +450,16 @@ function ProductCard({
         <div className="flex gap-3">
           <div className="flex-shrink-0 w-14 h-14 bg-gray-100 rounded overflow-hidden">
             {product.thumbnailUrl ? (
-              <Image
+              <PlumbingAwareImage
                 src={product.thumbnailUrl}
                 alt={product.name}
                 className="w-full h-full object-cover"
                 width={56}
                 height={56}
-                onError={(e) => {
-                  e.currentTarget.src = "/images/placeholder.png";
-                }}
+                plumbingConfig={plumbingConfig}
+                variantPlumbingConfig={
+                  selectedProduct?.variant?.plumbing_config
+                }
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-gray-400">

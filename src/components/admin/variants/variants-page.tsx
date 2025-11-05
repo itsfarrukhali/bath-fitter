@@ -1,16 +1,24 @@
-// components/admin/variants/variants-page-content.tsx
+// components/admin/variants/variants-page-content.tsx - Updated
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import axios, { AxiosError } from "axios";
-import { Plus, Edit, Trash2, ArrowLeft, Loader2, Search } from "lucide-react";
+import {
+  Plus,
+  Edit,
+  Trash2,
+  ArrowLeft,
+  Loader2,
+  Search,
+  FlipHorizontal2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Product, ProductVariant } from "@/types/products";
+import { Product, ProductVariant, PlumbingConfig } from "@/types/products";
 import CreateVariantModal from "@/components/admin/variants/create-variant-modal";
 import EditVariantModal from "@/components/admin/variants/edit-variant-modal";
 import DeleteVariantModal from "@/components/admin/variants/delete-variant-modal";
@@ -100,6 +108,62 @@ export default function VariantsPageContent() {
     router.push("/admin/products");
   };
 
+  const getPlumbingConfigBadge = (plumbingConfig: PlumbingConfig | null) => {
+    switch (plumbingConfig) {
+      case PlumbingConfig.LEFT:
+        return (
+          <Badge
+            variant="outline"
+            className="bg-blue-50 text-blue-700 border-blue-200"
+          >
+            Left Only
+          </Badge>
+        );
+      case PlumbingConfig.RIGHT:
+        return (
+          <Badge
+            variant="outline"
+            className="bg-green-50 text-green-700 border-green-200"
+          >
+            Right Only
+          </Badge>
+        );
+      case PlumbingConfig.BOTH:
+        return (
+          <Badge
+            variant="outline"
+            className="bg-purple-50 text-purple-700 border-purple-200"
+          >
+            Both Sides
+          </Badge>
+        );
+      default:
+        return (
+          <Badge
+            variant="outline"
+            className="bg-orange-50 text-orange-700 border-orange-200 flex items-center gap-1"
+          >
+            <FlipHorizontal2 className="h-3 w-3" /> Auto Mirror
+          </Badge>
+        );
+    }
+  };
+
+  const getPlumbingConfigDescription = (
+    plumbingConfig: PlumbingConfig | null
+  ) => {
+    switch (plumbingConfig) {
+      case PlumbingConfig.LEFT:
+        return "No mirroring - keeps left orientation";
+      case PlumbingConfig.RIGHT:
+        return "No mirroring - keeps right orientation";
+      case PlumbingConfig.BOTH:
+        return "No mirroring - uses left image for both sides";
+      default:
+        return "Will be mirrored for right side installations";
+    }
+  };
+
   // Loading state
   if (loading) {
     return (
@@ -186,6 +250,63 @@ export default function VariantsPageContent() {
         </Button>
       </div>
 
+      {/* Important Note */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div className="flex items-start gap-3">
+          <div className="bg-blue-100 p-2 rounded-full">
+            <FlipHorizontal2 className="h-5 w-5 text-blue-600" />
+          </div>
+          <div className="flex-1">
+            <h4 className="text-sm font-medium text-blue-800 mb-1">
+              Plumbing Configuration Guide
+            </h4>
+            <p className="text-xs text-blue-700 mb-2">
+              All images should be uploaded as <strong>LEFT SIDE</strong> views.
+              The plumbing configuration determines how images are handled in
+              the 3D configurator.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
+              <div className="flex items-center gap-2">
+                <Badge
+                  variant="outline"
+                  className="bg-orange-50 text-orange-700 border-orange-200 text-xs"
+                >
+                  Auto Mirror
+                </Badge>
+                <span>Image will be mirrored for right side</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Badge
+                  variant="outline"
+                  className="bg-blue-50 text-blue-700 border-blue-200 text-xs"
+                >
+                  Left Only
+                </Badge>
+                <span>No mirroring - keeps left orientation</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Badge
+                  variant="outline"
+                  className="bg-green-50 text-green-700 border-green-200 text-xs"
+                >
+                  Right Only
+                </Badge>
+                <span>No mirroring - keeps right orientation</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Badge
+                  variant="outline"
+                  className="bg-purple-50 text-purple-700 border-purple-200 text-xs"
+                >
+                  Both Sides
+                </Badge>
+                <span>No mirroring - uses left image for both</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Product Info */}
       {product && (
         <Card>
@@ -251,6 +372,9 @@ export default function VariantsPageContent() {
                   />
                 )}
               </div>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {getPlumbingConfigBadge(variant.plumbing_config ?? null)}
+              </div>
             </CardHeader>
 
             <CardContent className="space-y-4">
@@ -270,12 +394,19 @@ export default function VariantsPageContent() {
                 </div>
               )}
 
-              <div className="flex justify-between items-center">
-                {variant.colorCode && (
-                  <Badge variant="outline">{variant.colorCode}</Badge>
-                )}
-                <div className="text-sm text-muted-foreground">
-                  Created: {new Date(variant.createdAt).toLocaleDateString()}
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  {variant.colorCode && (
+                    <Badge variant="outline">{variant.colorCode}</Badge>
+                  )}
+                  <div className="text-sm text-muted-foreground">
+                    Created: {new Date(variant.createdAt).toLocaleDateString()}
+                  </div>
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  {getPlumbingConfigDescription(
+                    variant.plumbing_config ?? null
+                  )}
                 </div>
               </div>
 

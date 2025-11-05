@@ -3,7 +3,7 @@
 
 import { useState } from "react";
 import axios, { AxiosError } from "axios";
-import { Loader2, Upload, X } from "lucide-react";
+import { Loader2, Upload, X, HelpCircle } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -14,8 +14,21 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { toast } from "sonner";
-import { Product } from "@/types/products";
+import { Product, PlumbingConfig } from "@/types/products";
 import Image from "next/image";
 
 interface Props {
@@ -41,6 +54,7 @@ export default function CreateVariantModal({
   const [colorName, setColorName] = useState("");
   const [colorCode, setColorCode] = useState("");
   const [imageUrl, setImageUrl] = useState("");
+  const [plumbingConfig, setPlumbingConfig] = useState<PlumbingConfig | "">("");
   const [loading, setLoading] = useState(false);
   const [imageUploading, setImageUploading] = useState(false);
 
@@ -98,6 +112,7 @@ export default function CreateVariantModal({
         colorCode: colorCode.trim() || null,
         imageUrl: imageUrl.trim(),
         productId: product.id,
+        plumbing_config: plumbingConfig === "" ? null : plumbingConfig,
       };
 
       const { data } = await axios.post("/api/variants", variantData);
@@ -110,6 +125,7 @@ export default function CreateVariantModal({
         setColorName("");
         setColorCode("");
         setImageUrl("");
+        setPlumbingConfig("");
       } else {
         toast.error(data.message || "Failed to create variant");
       }
@@ -128,7 +144,7 @@ export default function CreateVariantModal({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[550px]">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle>Add Variant to {product.name}</DialogTitle>
@@ -139,9 +155,25 @@ export default function CreateVariantModal({
           </DialogHeader>
 
           <div className="space-y-4 py-4">
+            {/* Important Note */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="flex items-start gap-2">
+                <div className="flex-1">
+                  <h4 className="text-sm font-medium text-blue-800 mb-1">
+                    📝 Important Upload Instructions
+                  </h4>
+                  <p className="text-xs text-blue-700">
+                    Please upload <strong>LEFT SIDE</strong> images for all
+                    variants. The system will automatically handle mirroring
+                    based on plumbing configuration.
+                  </p>
+                </div>
+              </div>
+            </div>
+
             {/* Variant Image Upload */}
             <div className="space-y-2">
-              <Label htmlFor="image">Variant Image *</Label>
+              <Label htmlFor="image">Variant Image (Left Side) *</Label>
               <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
                 {imageUrl ? (
                   <div className="space-y-2">
@@ -185,7 +217,7 @@ export default function CreateVariantModal({
                   <div className="space-y-2">
                     <Upload className="h-8 w-8 mx-auto text-gray-400" />
                     <p className="text-sm text-gray-600">
-                      Upload variant image
+                      Upload LEFT SIDE variant image
                     </p>
                     <Input
                       type="file"
@@ -214,11 +246,89 @@ export default function CreateVariantModal({
                           Uploading...
                         </>
                       ) : (
-                        "Upload Image"
+                        "Upload Left Side Image"
                       )}
                     </Button>
                   </div>
                 )}
+              </div>
+            </div>
+
+            {/* Plumbing Configuration */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Label htmlFor="plumbing_config">
+                  Plumbing Configuration ?
+                </Label>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <HelpCircle className="h-4 w-4 text-muted-foreground cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-sm">
+                      <div className="space-y-2">
+                        <p className="font-semibold">
+                          What is Plumbing Configuration?
+                        </p>
+                        <div className="text-sm space-y-1">
+                          <p>
+                            <strong>Null/Not Set:</strong> Variant will be
+                            mirrored for right side installations
+                          </p>
+                          <p>
+                            <strong>Left:</strong> Variant will NOT be mirrored
+                            - keeps left orientation
+                          </p>
+                          <p>
+                            <strong>Right:</strong> Variant will NOT be mirrored
+                            - keeps right orientation
+                          </p>
+                          <p>
+                            <strong>Both:</strong> Variant will NOT be mirrored
+                            - uses left image for both sides
+                          </p>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          💡 Always upload LEFT SIDE images. The system handles
+                          mirroring automatically.
+                        </p>
+                      </div>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+              <Select
+                value={plumbingConfig}
+                onValueChange={(value: PlumbingConfig | "") =>
+                  setPlumbingConfig(value)
+                }
+                disabled={loading || imageUploading}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select plumbing configuration" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="auto">Not Set (Auto Mirror)</SelectItem>
+                  <SelectItem value={PlumbingConfig.LEFT}>
+                    Left (No Mirroring)
+                  </SelectItem>
+                  <SelectItem value={PlumbingConfig.RIGHT}>
+                    Right (No Mirroring)
+                  </SelectItem>
+                  <SelectItem value={PlumbingConfig.BOTH}>
+                    Both (No Mirroring)
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              <div className="text-xs text-muted-foreground space-y-1">
+                <p>
+                  <strong>Not Set:</strong> Image will be mirrored for right
+                  side
+                </p>
+                <p>
+                  <strong>Left/Right/Both:</strong> No mirroring - image stays
+                  as uploaded
+                </p>
               </div>
             </div>
 

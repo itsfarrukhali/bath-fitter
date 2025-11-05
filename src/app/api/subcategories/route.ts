@@ -34,6 +34,7 @@ export async function GET(request: NextRequest) {
                 select: { variants: true },
               },
             },
+            orderBy: { z_index: "asc" },
           },
           _count: {
             select: {
@@ -41,7 +42,7 @@ export async function GET(request: NextRequest) {
             },
           },
         },
-        orderBy: { name: "asc" },
+        orderBy: [{ z_index: "asc" }, { name: "asc" }],
       }),
       prisma.subcategory.count({ where: whereClause }),
     ]);
@@ -65,7 +66,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST - Create a new subcategory
+// POST - Create a new subcategory (updated with z_index)
 export async function POST(request: NextRequest) {
   try {
     const authUser = await getAuthenticatedUser(request);
@@ -74,7 +75,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body: SubcategoryCreateData = await request.json();
-    const { name, slug, categoryId } = body;
+    const { name, slug, categoryId, z_index } = body;
 
     // Validation
     if (!name || !slug || !categoryId) {
@@ -85,6 +86,19 @@ export async function POST(request: NextRequest) {
         },
         { status: 400 }
       );
+    }
+
+    // Validate z_index range if provided
+    if (z_index !== undefined && z_index !== null) {
+      if (z_index < 0 || z_index > 100) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: "Z-Index must be between 0 and 100",
+          },
+          { status: 400 }
+        );
+      }
     }
 
     // Check if category exists
@@ -119,6 +133,7 @@ export async function POST(request: NextRequest) {
         name,
         slug,
         categoryId,
+        z_index: z_index ?? 50,
       },
       include: {
         category: {
@@ -134,6 +149,7 @@ export async function POST(request: NextRequest) {
               select: { variants: true },
             },
           },
+          orderBy: { z_index: "asc" },
         },
         _count: {
           select: {

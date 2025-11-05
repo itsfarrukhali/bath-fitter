@@ -1,9 +1,9 @@
-// app/admin/products/page.tsx
+// src/components/admin/products/page.tsx
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
 import axios, { AxiosError } from "axios";
-import { Plus, Edit, Trash2, Eye, Loader2, Search } from "lucide-react";
+import { Plus, Edit, Trash2, Eye, Loader2, Search, Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -66,7 +66,7 @@ export default function ProductsPage() {
     }
 
     setFilteredProducts(filtered);
-  }, [products, searchTerm, selectedCategory]); // Add dependencies
+  }, [products, searchTerm, selectedCategory]);
 
   useEffect(() => {
     fetchProducts();
@@ -75,7 +75,7 @@ export default function ProductsPage() {
 
   useEffect(() => {
     filterProducts();
-  }, [filterProducts]); // Add filterProducts as dependency
+  }, [filterProducts]);
 
   const fetchProducts = async () => {
     try {
@@ -95,13 +95,11 @@ export default function ProductsPage() {
     }
   };
 
-  // In your products page component
   const fetchCategories = async () => {
     try {
       const { data } = await axios.get(
         "/api/categories?forAdmin=true&limit=100"
       );
-      console.log("Categories API Response:", data);
       if (data.success) {
         setCategories(data.data);
       }
@@ -113,8 +111,6 @@ export default function ProductsPage() {
       } else {
         toast.error("An unexpected error occurred");
       }
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -148,6 +144,15 @@ export default function ProductsPage() {
 
   const getSubcategoryName = (product: Product) => {
     return product.subcategory?.name || null;
+  };
+
+  const getProductZIndex = (product: Product) => {
+    return (
+      product.z_index ??
+      product.subcategory?.z_index ??
+      product.category?.z_index ??
+      "Not set"
+    );
   };
 
   if (loading) {
@@ -217,6 +222,11 @@ export default function ProductsPage() {
                             {category.showerType.name}
                           </Badge>
                         )}
+                        {category.z_index && (
+                          <Badge variant="secondary" className="text-xs">
+                            Z:{category.z_index}
+                          </Badge>
+                        )}
                       </div>
                     </SelectItem>
                   ))}
@@ -243,9 +253,18 @@ export default function ProductsPage() {
                 <CardTitle className="text-lg">
                   {product.name || "Unnamed Product"}
                 </CardTitle>
-                <Badge variant="secondary">
-                  {product._count?.variants || 0} variants
-                </Badge>
+                <div className="flex flex-col items-end gap-1">
+                  <Badge variant="secondary">
+                    {product._count?.variants || 0} variants
+                  </Badge>
+                  <Badge
+                    variant="outline"
+                    className="flex items-center gap-1 text-xs"
+                  >
+                    <Layers className="h-3 w-3" />
+                    Z: {getProductZIndex(product)}
+                  </Badge>
+                </div>
               </div>
               <div className="text-sm text-muted-foreground">
                 {getShowerTypeName(product)} → {getCategoryName(product)}

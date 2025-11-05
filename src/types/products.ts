@@ -1,16 +1,25 @@
-// types/product.ts
+// types/products.ts
+export enum PlumbingConfig {
+  LEFT = "LEFT",
+  RIGHT = "RIGHT",
+  BOTH = "BOTH",
+}
+
 export interface Product {
   id: number;
   name: string;
   slug: string;
   description?: string;
   thumbnailUrl?: string;
+  _transformedImageUrl?: string;
   categoryId: number;
   subcategoryId?: number;
+  z_index?: number | null;
   category: {
     id: number;
     name: string;
     slug: string;
+    z_index?: number | null;
     showerType: {
       id: number;
       name: string;
@@ -21,6 +30,7 @@ export interface Product {
     id: number;
     name: string;
     slug: string;
+    z_index?: number | null;
   };
   variants: ProductVariant[];
   _count: {
@@ -35,8 +45,10 @@ export interface ProductVariant {
   colorName: string;
   colorCode?: string;
   imageUrl: string;
+  _transformedImageUrl?: string;
   publicId?: string;
   productId: number;
+  plumbing_config?: PlumbingConfig | null;
   product?: Product;
   createdAt: string;
   updatedAt: string;
@@ -49,6 +61,7 @@ export interface ProductCreateData {
   thumbnailUrl?: string;
   categoryId: number;
   subcategoryId?: number;
+  z_index?: number | null;
 }
 
 export interface ProductUpdateData {
@@ -58,6 +71,7 @@ export interface ProductUpdateData {
   thumbnailUrl?: string;
   categoryId?: number;
   subcategoryId?: number;
+  z_index?: number | null;
 }
 
 export interface ProductResponse {
@@ -70,4 +84,21 @@ export interface ProductResponse {
     total: number;
     totalPages: number;
   };
+}
+
+export interface VariantCreateData {
+  colorName: string;
+  colorCode?: string;
+  imageUrl: string;
+  publicId?: string;
+  productId: number;
+  plumbing_config?: PlumbingConfig | null;
+}
+
+export interface VariantUpdateData {
+  colorName?: string;
+  colorCode?: string;
+  imageUrl?: string;
+  publicId?: string;
+  plumbing_config?: PlumbingConfig | null;
 }

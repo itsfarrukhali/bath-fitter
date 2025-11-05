@@ -31,6 +31,7 @@ export async function GET(
               select: { products: true },
             },
           },
+          orderBy: { z_index: "asc" },
         },
         products: {
           include: {
@@ -39,6 +40,7 @@ export async function GET(
               select: { variants: true },
             },
           },
+          orderBy: { z_index: "asc" },
         },
         _count: {
           select: {
@@ -69,7 +71,7 @@ export async function GET(
   }
 }
 
-// PUT - Update a category
+// PUT - Update a category (updated with z_index)
 export async function PUT(
   request: NextRequest,
   segmentData: { params: Params }
@@ -83,7 +85,7 @@ export async function PUT(
     const params = await segmentData.params;
     const { id } = params;
     const body: CategoryUpdateData = await request.json();
-    const { name, slug, hasSubcategories, showerTypeId } = body;
+    const { name, slug, hasSubcategories, showerTypeId, z_index } = body;
 
     // Check if category exists
     const existingCategory = await prisma.category.findUnique({
@@ -95,6 +97,19 @@ export async function PUT(
         { success: false, message: "Category not found" },
         { status: 404 }
       );
+    }
+
+    // Validate z_index range if provided
+    if (z_index !== undefined && z_index !== null) {
+      if (z_index < 0 || z_index > 100) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: "Z-Index must be between 0 and 100",
+          },
+          { status: 400 }
+        );
+      }
     }
 
     // Check if shower type exists if being updated
@@ -116,7 +131,7 @@ export async function PUT(
       const duplicate = await prisma.category.findFirst({
         where: {
           slug,
-          id: { not: parseInt(id) }, // exclude current category
+          id: { not: parseInt(id) },
         },
       });
 
@@ -135,6 +150,7 @@ export async function PUT(
         ...(slug && { slug }),
         ...(hasSubcategories !== undefined && { hasSubcategories }),
         ...(showerTypeId && { showerTypeId }),
+        ...(z_index !== undefined && { z_index }),
       },
       include: {
         showerType: {
@@ -150,6 +166,7 @@ export async function PUT(
               select: { products: true },
             },
           },
+          orderBy: { z_index: "asc" },
         },
         _count: {
           select: {
@@ -174,7 +191,7 @@ export async function PUT(
   }
 }
 
-// DELETE - Delete a category
+// DELETE - Delete a category (no changes needed)
 export async function DELETE(
   request: NextRequest,
   segmentData: { params: Params }

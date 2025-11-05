@@ -27,6 +27,12 @@ import DesktopConfigurator from "@/components/design/desktop-configurator";
 import MobileConfigurator from "@/components/design/mobile-configurator";
 import axios from "axios";
 import { Badge } from "@/components/ui/badge";
+import { transformCloudinaryUrl } from "@/utils/cloudinaryTransform";
+import { getProductImageUrl } from "@/utils/productImageHelper";
+import {
+  getAppropriateVariant,
+  getVariantForPlumbingConfig,
+} from "@/utils/plumbingProductHelper";
 
 interface Position {
   x: number;
@@ -126,7 +132,7 @@ export default function DesignPage() {
       const configuration = JSON.parse(config);
 
       const categoriesResponse = await axios.get(
-        `/api/categories?showerTypeId=${configuration.showerTypeId}&includeProducts=true`
+        `/api/categories?showerTypeId=${configuration.showerTypeId}&includeProducts=true&plumbingConfig=${configuration.plumbingConfig}`
       );
 
       if (categoriesResponse.status !== 200) {
@@ -141,6 +147,7 @@ export default function DesignPage() {
         ...prev,
         configuration,
         categories: categoriesData.data,
+        plumbingConfig: configuration.plumbingConfig,
         baseImage: getBaseImage(
           configuration.showerTypeId,
           configuration.plumbingConfig
@@ -197,6 +204,8 @@ export default function DesignPage() {
     const showerType = showerTypeMap[showerTypeId] || "main";
     const plumbing = plumbingConfig || "right";
 
+    // For local images, we have separate files
+    // For Cloudinary images, we use transformations
     return `/images/shower-base-main-${showerType}-${plumbing}.png`;
   };
 
@@ -215,7 +224,25 @@ export default function DesignPage() {
   const handleProductSelect = (product: Product, variant?: ProductVariant) => {
     if (!product) return;
 
-    const selectedVariant = variant || product.variants?.[0];
+    console.log("Product:", product.name);
+    console.log("Product variants:", product.variants);
+    console.log("Shower Type:", state.configuration.showerTypeId);
+    console.log("Plumbing Config:", state.configuration.plumbingConfig);
+
+    // Use enhanced plumbing-aware variant selection
+    const plumbingConfig = state.configuration.plumbingConfig ?? "right";
+    const showerTypeId = state.configuration.showerTypeId ?? 5;
+
+    const selectedVariant = getAppropriateVariant(
+      product,
+      plumbingConfig,
+      showerTypeId
+    );
+
+    console.log("Selected variant:", selectedVariant);
+    console.log("Variant plumbing config:", selectedVariant?.plumbing_config);
+
+    const productImageUrl = getProductImageUrl(product, selectedVariant);
 
     const productKey = product.subcategoryId
       ? `subcategory-${product.subcategoryId}`
@@ -224,14 +251,7 @@ export default function DesignPage() {
     setState((prev) => {
       const newSelectedProducts = { ...prev.selectedProducts };
 
-      // Clean up any invalid entries first
-      Object.keys(newSelectedProducts).forEach((key) => {
-        if (!newSelectedProducts[key] || !newSelectedProducts[key].product) {
-          delete newSelectedProducts[key];
-        }
-      });
-
-      // Door/Rod detection logic
+      // Door/Rod detection logic (unchanged)
       const isDoorOrRod = () => {
         const categorySlug = product.category?.slug?.toLowerCase();
         const subcategorySlug = product.subcategory?.slug?.toLowerCase();
@@ -282,14 +302,21 @@ export default function DesignPage() {
         });
       }
 
-      // Add the new product
       return {
         ...prev,
         selectedProducts: {
           ...newSelectedProducts,
           [productKey]: {
-            product,
-            variant: selectedVariant,
+            product: {
+              ...product,
+              imageUrl: productImageUrl,
+            },
+            variant: selectedVariant
+              ? {
+                  ...selectedVariant,
+                  imageUrl: selectedVariant.imageUrl || productImageUrl,
+                }
+              : undefined,
             categoryId: product.categoryId,
             subcategoryId: product.subcategoryId,
           },

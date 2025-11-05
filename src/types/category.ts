@@ -88,7 +88,7 @@ export interface CategoryCreateData {
   name: string;
   slug: string;
   z_index?: number | null;
-  templateId: number;
+  templateId?: number;
   hasSubcategories: boolean;
   showerTypeId: number;
 }

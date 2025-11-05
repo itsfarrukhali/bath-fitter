@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createUnauthorizedResponse, getAuthenticatedUser } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { deleteFromCloudinary } from "@/lib/cloudinary";
+import { PlumbingConfig } from "@prisma/client";
 
 type Params = Promise<{ id: string }>;
 
@@ -60,7 +61,7 @@ export async function PUT(
     const params = await segmentData.params;
     const { id } = params;
     const body = await request.json();
-    const { colorName, colorCode, imageUrl, publicId } = body;
+    const { colorName, colorCode, imageUrl, publicId, plumbing_config } = body;
 
     const existingVariant = await prisma.productVariant.findUnique({
       where: { id: parseInt(id) },
@@ -76,6 +77,20 @@ export async function PUT(
     if (!colorName?.trim()) {
       return NextResponse.json(
         { success: false, message: "Color name is required" },
+        { status: 400 }
+      );
+    }
+
+    // Validate plumbing_config if provided
+    if (
+      plumbing_config &&
+      !Object.values(PlumbingConfig).includes(plumbing_config)
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Invalid plumbing configuration",
+        },
         { status: 400 }
       );
     }
@@ -121,6 +136,10 @@ export async function PUT(
         colorCode: colorCode?.trim() || null,
         imageUrl: imageUrl || existingVariant.imageUrl,
         publicId: publicId || existingVariant.publicId,
+        plumbing_config:
+          plumbing_config !== undefined
+            ? plumbing_config
+            : existingVariant.plumbing_config,
       },
       include: {
         product: {

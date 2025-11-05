@@ -114,6 +114,7 @@ model TemplateVariant {
   updatedAt         DateTime         @updatedAt
   imageUrl          String
   publicId          String?
+  plumbingConfig    PlumbingConfig   @default(LEFT) // NEW FIELD
   ProductVariant    ProductVariant[]
   templateProduct   TemplateProduct  @relation(fields: [templateProductId], references: [id])
 }
@@ -128,6 +129,7 @@ model Category {
   templateId       Int?
   updatedAt        DateTime          @default(now()) @updatedAt
   z_index          Int?              @default(50)
+  plumbingConfig   PlumbingConfig    @default(LEFT)
   showerType       ShowerType        @relation(fields: [showerTypeId], references: [id])
   template         TemplateCategory? @relation(fields: [templateId], references: [id])
   products         Product[]
@@ -137,37 +139,39 @@ model Category {
 }
 
 model Subcategory {
-  id         Int                  @id @default(autoincrement())
-  name       String
-  slug       String
-  categoryId Int
-  createdAt  DateTime             @default(now())
-  templateId Int?
-  updatedAt  DateTime             @default(now()) @updatedAt
-  z_index    Int?                 @default(50)
-  products   Product[]
-  category   Category             @relation(fields: [categoryId], references: [id])
-  template   TemplateSubcategory? @relation(fields: [templateId], references: [id])
+  id             Int                  @id @default(autoincrement())
+  name           String
+  slug           String
+  categoryId     Int
+  createdAt      DateTime             @default(now())
+  templateId     Int?
+  updatedAt      DateTime             @default(now()) @updatedAt
+  z_index        Int?                 @default(50) // Z-Index field
+  plumbingConfig PlumbingConfig       @default(LEFT)
+  products       Product[]
+  category       Category             @relation(fields: [categoryId], references: [id])
+  template       TemplateSubcategory? @relation(fields: [templateId], references: [id])
 
   @@unique([categoryId, slug])
 }
 
 model Product {
-  id            Int              @id @default(autoincrement())
-  name          String
-  categoryId    Int
-  subcategoryId Int?
-  createdAt     DateTime         @default(now())
-  slug          String
-  templateId    Int?
-  updatedAt     DateTime         @default(now()) @updatedAt
-  description   String?
-  thumbnailUrl  String?
-  z_index       Int?             @default(50)
-  category      Category         @relation(fields: [categoryId], references: [id])
-  subcategory   Subcategory?     @relation(fields: [subcategoryId], references: [id])
-  template      TemplateProduct? @relation(fields: [templateId], references: [id])
-  variants      ProductVariant[]
+  id             Int              @id @default(autoincrement())
+  name           String
+  categoryId     Int
+  subcategoryId  Int?
+  createdAt      DateTime         @default(now())
+  slug           String
+  templateId     Int?
+  updatedAt      DateTime         @default(now()) @updatedAt
+  description    String?
+  thumbnailUrl   String?
+  z_index        Int?             @default(50)
+  plumbingConfig PlumbingConfig   @default(LEFT)
+  category       Category         @relation(fields: [categoryId], references: [id])
+  subcategory    Subcategory?     @relation(fields: [subcategoryId], references: [id])
+  template       TemplateProduct? @relation(fields: [templateId], references: [id])
+  variants       ProductVariant[]
 
   @@unique([categoryId, slug])
   @@unique([subcategoryId, slug])
@@ -179,6 +183,7 @@ model ProductVariant {
   colorCode         String?
   imageUrl          String
   productId         Int
+  plumbing_config   PlumbingConfig? // Keep existing field
   createdAt         DateTime         @default(now())
   templateVariantId Int?
   updatedAt         DateTime         @default(now()) @updatedAt
@@ -198,4 +203,10 @@ model UserDesign {
   createdAt      DateTime   @default(now())
   updatedAt      DateTime   @default(now()) @updatedAt
   showerType     ShowerType @relation(fields: [showerTypeId], references: [id])
+}
+
+enum PlumbingConfig {
+  LEFT
+  RIGHT
+  BOTH
 }

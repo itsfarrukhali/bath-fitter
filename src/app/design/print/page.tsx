@@ -46,7 +46,6 @@ const preloadImages = (imageUrls: string[]): Promise<boolean> => {
 
     imageUrls.forEach((url) => {
       const img = new Image();
-      // Cache busting to ensure fresh load
       const cacheBustedUrl =
         url + (url.includes("?") ? "&" : "?") + "t=" + Date.now();
 
@@ -62,7 +61,7 @@ const preloadImages = (imageUrls: string[]): Promise<boolean> => {
         loadedCount++;
         console.warn(`Failed to load image: ${url}`);
         if (loadedCount === totalImages) {
-          resolve(true); // Resolve anyway so printing can continue
+          resolve(true);
         }
       };
     });
@@ -84,12 +83,10 @@ function PrintPageContent() {
   const getAllImageUrls = (data: ConfiguratorState): string[] => {
     const urls: string[] = [];
 
-    // Add base image
     if (data.baseImage) {
       urls.push(data.baseImage);
     }
 
-    // Add product images
     Object.values(data.selectedProducts).forEach((selectedProduct) => {
       const imageUrl =
         selectedProduct.variant?.imageUrl || selectedProduct.product?.imageUrl;
@@ -120,7 +117,6 @@ function PrintPageContent() {
             setDesignData(data);
             setError(null);
 
-            // Preload all images with more aggressive approach
             const imageUrls = getAllImageUrls(data);
             console.log("Preloading images:", imageUrls);
 
@@ -131,10 +127,9 @@ function PrintPageContent() {
             setImagesLoaded(true);
             console.log("All images preloaded successfully");
 
-            // Clean up this design data after a short delay
             setTimeout(() => {
               storageUtils.removeDesign(designId);
-            }, 30000); // 30 seconds for user to print
+            }, 30000);
           } catch (parseError) {
             console.error("Error parsing design data:", parseError);
             setError("Invalid design data format");
@@ -156,18 +151,15 @@ function PrintPageContent() {
   const handlePrint = async () => {
     if (!imagesLoaded) {
       console.log("Images not loaded yet, waiting...");
-      // Wait a bit more for images
       await new Promise((resolve) => setTimeout(resolve, 2000));
     }
 
     setPrintTriggered(true);
 
-    // Small delay to ensure DOM updates and images are rendered
     setTimeout(() => {
       console.log("Triggering print...");
       setHasPrinted(true);
 
-      // Use a longer timeout to ensure everything is ready for print
       setTimeout(() => {
         window.print();
       }, 500);
@@ -274,14 +266,12 @@ function PrintPageContent() {
             background: white !important;
             color: black !important;
             font-family: Arial, Helvetica, sans-serif !important;
-            font-size: 12px !important;
-            line-height: 1.3 !important;
+            font-size: 13px !important;
+            line-height: 1.4 !important;
           }
 
           body * {
             visibility: visible !important;
-            background: white !important;
-            color: black !important;
           }
 
           /* Hide non-printable elements */
@@ -295,7 +285,7 @@ function PrintPageContent() {
             max-width: none !important;
             height: auto !important;
             margin: 0 !important;
-            padding: 0.2in !important;
+            padding: 0.3in !important;
             background: white !important;
             color: black !important;
             visibility: visible !important;
@@ -304,7 +294,7 @@ function PrintPageContent() {
           /* Page setup - Single A4 page */
           @page {
             size: A4 portrait;
-            margin: 0.2in;
+            margin: 0.3in;
           }
 
           /* Ensure images are visible and properly sized */
@@ -325,51 +315,80 @@ function PrintPageContent() {
           .print-content span,
           .print-content div {
             color: black !important;
-            background: transparent !important;
           }
 
-          /* Remove backgrounds */
+          /* Remove all borders */
+          .border,
+          .border-b,
+          .border-t,
+          .border-border {
+            border: none !important;
+          }
+
+          /* Remove card backgrounds and borders */
           .bg-background,
           .bg-muted,
-          .bg-card {
+          .bg-card,
+          [class*="bg-"] {
             background: white !important;
           }
 
-          /* Borders for print */
-          .border {
-            border-color: #333 !important;
-            border-width: 1px !important;
-          }
-
-          /* Color circles fix for print */
+          /* Color circles - FIXED for print with inline styles */
           .color-circle {
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
             color-adjust: exact !important;
-            border: 1px solid #666 !important;
+            background-color: inherit !important;
+            border: 2px solid #333 !important;
+            display: inline-block !important;
+            border-radius: 50% !important;
           }
 
-          /* Text sizes for print */
-          .text-xs {
-            font-size: 10px !important;
+          /* Text sizes for print - LARGER */
+          .print-header-title {
+            font-size: 28px !important;
+            font-weight: bold !important;
+            margin-bottom: 12px !important;
           }
-          .text-sm {
-            font-size: 11px !important;
+
+          .print-section-title {
+            font-size: 20px !important;
+            font-weight: 600 !important;
+            margin-bottom: 16px !important;
           }
-          .text-base {
-            font-size: 12px !important;
+
+          .print-product-name {
+            font-size: 16px !important;
+            font-weight: 600 !important;
           }
-          .text-lg {
+
+          .print-product-details {
             font-size: 14px !important;
           }
-          .text-xl {
-            font-size: 16px !important;
+
+          .text-xs {
+            font-size: 11px !important;
           }
-          .text-2xl {
-            font-size: 18px !important;
+          .text-sm {
+            font-size: 13px !important;
           }
-          .text-3xl {
-            font-size: 20px !important;
+          .text-base {
+            font-size: 14px !important;
+          }
+
+          /* Spacing adjustments */
+          .print-spacing-header {
+            margin-bottom: 24px !important;
+            padding-bottom: 16px !important;
+          }
+
+          .print-spacing-section {
+            margin-bottom: 24px !important;
+          }
+
+          .print-spacing-item {
+            margin-bottom: 16px !important;
+            padding: 12px !important;
           }
 
           /* Prevent page breaks */
@@ -389,12 +408,21 @@ function PrintPageContent() {
             height: auto !important;
             overflow: visible !important;
           }
+
+          /* Badge styling for print */
+          .badge-print {
+            background: #e5e7eb !important;
+            color: black !important;
+            padding: 4px 12px !important;
+            border-radius: 4px !important;
+            font-size: 12px !important;
+          }
         }
 
         /* Screen styles */
         @media screen {
           .print-content {
-            max-width: 210mm; /* A4 width */
+            max-width: 210mm;
             margin: 0 auto;
             padding: 2rem;
             background: hsl(var(--background));
@@ -425,7 +453,7 @@ export default function PrintPage() {
   );
 }
 
-// Print Content Component
+// Print Content Component - REDESIGNED
 function PrintContentView({
   designData,
   imagesLoaded,
@@ -436,143 +464,138 @@ function PrintContentView({
   const productCount = Object.keys(designData.selectedProducts).length;
 
   return (
-    <div className="mx-auto bg-background print:bg-white space-y-4 print-section">
-      {/* Header */}
-      <div className="text-center border-b border-border pb-4">
-        <h1 className="text-2xl font-bold text-foreground mb-2">
+    <div className="mx-auto bg-background print:bg-white space-y-6 print-section">
+      {/* Header - LARGER */}
+      <div className="text-center border-b border-border pb-4 print-spacing-header">
+        <h1 className="text-4xl font-bold text-foreground mb-3 print-header-title">
           Shower Design Specification
         </h1>
-        <div className="flex flex-wrap justify-center gap-3 text-sm">
-          <Badge variant="secondary" className="text-xs">
+        <div className="flex flex-wrap justify-center gap-4 text-sm">
+          <Badge variant="secondary" className="text-sm badge-print px-4 py-1">
             Type: {designData.configuration.showerTypeName}
           </Badge>
-          <Badge variant="secondary" className="text-xs">
+          <Badge variant="secondary" className="text-sm badge-print px-4 py-1">
             Plumbing: {designData.configuration.plumbingConfig}
           </Badge>
-          <Badge variant="secondary" className="text-xs">
+          <Badge variant="secondary" className="text-sm badge-print px-4 py-1">
             Date: {new Date().toLocaleDateString()}
           </Badge>
         </div>
       </div>
 
-      {/* Main Content - Single column layout */}
-      <div className="space-y-6">
-        {/* Design Overview */}
-        <Card className="border">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg font-semibold text-center">
-              Design Overview
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <div className="flex justify-center">
-              <div className="border border-border rounded bg-muted/20 p-2">
-                <div
-                  className="relative"
-                  style={{
-                    width: "300px",
-                    height: "300px",
-                    maxWidth: "100%",
-                  }}
-                >
-                  {/* Base Image */}
-                  {imagesLoaded && designData.baseImage && (
-                    <NextImage
-                      src={designData.baseImage}
-                      alt="Shower Base"
-                      fill
-                      className="object-contain"
-                    />
-                  )}
-
-                  {/* Product Overlays */}
-                  {imagesLoaded &&
-                    Object.entries(designData.selectedProducts).map(
-                      ([key, selectedProduct]) => {
-                        const imageUrl =
-                          selectedProduct.variant?.imageUrl ||
-                          selectedProduct.product?.imageUrl;
-                        return imageUrl ? (
-                          <NextImage
-                            key={key}
-                            src={imageUrl}
-                            alt={selectedProduct.product.name}
-                            fill
-                            className="object-contain p-4"
-                            style={{
-                              zIndex: selectedProduct.product?.z_index || 10,
-                            }}
-                          />
-                        ) : null;
-                      }
-                    )}
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Selected Products */}
-        <Card className="border">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg font-semibold text-center">
-              Selected Products ({productCount})
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <div className="space-y-3">
-              {Object.entries(designData.selectedProducts).map(
-                ([key, selectedProduct], index) => (
-                  <div
-                    key={key}
-                    className="border border-border rounded p-3 space-y-2"
-                  >
-                    <div className="flex items-center gap-3">
-                      <Badge className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold bg-primary text-primary-foreground">
-                        {index + 1}
-                      </Badge>
-                      <h3 className="font-semibold text-base text-foreground flex-1">
-                        {selectedProduct.product?.name}
-                      </h3>
-                    </div>
-
-                    {/* Color Display - Fixed for print */}
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-muted-foreground font-medium">
-                        Color:
-                      </span>
-                      <div className="flex items-center gap-2">
-                        <span
-                          className="color-circle inline-block rounded-full border"
-                          style={{
-                            width: "16px",
-                            height: "16px",
-                            backgroundColor:
-                              selectedProduct.variant?.colorCode || "#cccccc",
-                          }}
-                        />
-                        <span className="text-sm text-muted-foreground">
-                          {selectedProduct.variant?.colorName || "Default"}
-                        </span>
-                      </div>
-                    </div>
-
-                    {selectedProduct.product?.description && (
-                      <p className="text-sm text-muted-foreground leading-relaxed">
-                        {selectedProduct.product.description}
-                      </p>
-                    )}
-                  </div>
-                )
+      {/* Design Overview - LARGER IMAGE */}
+      <div className="space-y-3 print-spacing-section">
+        <h2 className="text-2xl font-semibold text-center text-foreground print-section-title">
+          Design Overview
+        </h2>
+        <div className="flex justify-center">
+          <div className="rounded bg-muted/20 p-3">
+            <div
+              className="relative"
+              style={{
+                width: "400px",
+                height: "400px",
+                maxWidth: "100%",
+              }}
+            >
+              {/* Base Image */}
+              {imagesLoaded && designData.baseImage && (
+                <NextImage
+                  src={designData.baseImage}
+                  alt="Shower Base"
+                  fill
+                  className="object-contain"
+                />
               )}
+
+              {/* Product Overlays */}
+              {imagesLoaded &&
+                Object.entries(designData.selectedProducts).map(
+                  ([key, selectedProduct]) => {
+                    const imageUrl =
+                      selectedProduct.variant?.imageUrl ||
+                      selectedProduct.product?.imageUrl;
+                    return imageUrl ? (
+                      <NextImage
+                        key={key}
+                        src={imageUrl}
+                        alt={selectedProduct.product.name}
+                        fill
+                        className="object-contain p-4"
+                        style={{
+                          zIndex: selectedProduct.product?.z_index || 10,
+                        }}
+                      />
+                    ) : null;
+                  }
+                )}
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
+      </div>
+
+      {/* Selected Products - 2 COLUMN LAYOUT */}
+      <div className="space-y-3 print-spacing-section">
+        <h2 className="text-2xl font-semibold text-center text-foreground print-section-title">
+          Selected Products ({productCount})
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 print-two-columns">
+          {Object.entries(designData.selectedProducts).map(
+            ([key, selectedProduct], index) => (
+              <div
+                key={key}
+                className="rounded p-4 space-y-3 bg-muted/10 print-spacing-item"
+              >
+                <div className="flex items-center gap-4">
+                  <Badge className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold bg-primary text-primary-foreground">
+                    {index + 1}
+                  </Badge>
+                  <h3 className="font-semibold text-lg text-foreground flex-1 print-product-name">
+                    {selectedProduct.product?.name}
+                  </h3>
+                </div>
+
+                {/* Color Display - ENHANCED with SVG fallback */}
+                <div className="flex items-center gap-3">
+                  <span className="text-base text-muted-foreground font-medium print-product-details">
+                    Color:
+                  </span>
+                  <div className="flex items-center gap-3">
+                    {/* SVG Circle for better print compatibility */}
+                    <svg
+                      width="24"
+                      height="24"
+                      style={{ display: "inline-block" }}
+                    >
+                      <circle
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        fill={selectedProduct.variant?.colorCode || "#cccccc"}
+                        stroke="#333"
+                        strokeWidth="2"
+                      />
+                    </svg>
+                    <span className="text-base text-muted-foreground print-product-details">
+                      {selectedProduct.variant?.colorName || "Default"}
+                    </span>
+                  </div>
+                </div>
+
+                {selectedProduct.product?.description && (
+                  <p className="text-sm text-muted-foreground leading-relaxed print-product-details">
+                    {selectedProduct.product.description}
+                  </p>
+                )}
+              </div>
+            )
+          )}
+        </div>
       </div>
 
       {/* Footer */}
-      <div className="border-t border-border pt-4 text-center">
-        <p className="text-sm text-muted-foreground">
+      <div className="pt-6 text-center">
+        <p className="text-base text-muted-foreground font-medium">
           Home Care - We Make Your Dreams Into Reality
         </p>
       </div>

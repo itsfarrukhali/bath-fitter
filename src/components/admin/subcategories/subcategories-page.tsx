@@ -3,7 +3,7 @@
 
 import { useEffect, useState } from "react";
 import axios, { AxiosError } from "axios";
-import { FolderTree, Folder } from "lucide-react";
+import { FolderTree, Folder, Layers } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -37,7 +37,7 @@ export default function SubcategoriesPage() {
     setError(null);
     try {
       const { data } = await axios.get<SubcategoryListResponse>(
-        `/api/subcategories?page=${page}&limit=6`
+        `/api/subcategories?forAdmin=true&page=${page}&limit=6`
       );
 
       if (!data.success) throw new Error(data.message);
@@ -162,10 +162,20 @@ export default function SubcategoriesPage() {
                 </div>
               </CardHeader>
               <CardContent className="p-4">
-                <div className="mb-4">
-                  <div className="flex items-center justify-between text-sm mb-2">
+                <div className="mb-4 space-y-2">
+                  <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Slug</span>
                     <Badge variant="secondary">{subcategory.slug}</Badge>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Z-Index</span>
+                    <Badge
+                      variant="secondary"
+                      className="flex items-center gap-1"
+                    >
+                      <Layers className="h-3 w-3" />
+                      {subcategory.z_index ?? "Not set"}
+                    </Badge>
                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Category</span>
@@ -197,7 +207,14 @@ export default function SubcategoriesPage() {
                           key={product.id}
                           className="flex items-center justify-between text-xs p-1 bg-muted/30 rounded"
                         >
-                          <span>{product.name}</span>
+                          <div className="flex items-center gap-1">
+                            <span>{product.name}</span>
+                            {product.z_index && (
+                              <Badge variant="secondary" className="text-xs">
+                                Z: {product.z_index}
+                              </Badge>
+                            )}
+                          </div>
                           <Badge variant="secondary">
                             {product._count?.variants || 0} variants
                           </Badge>

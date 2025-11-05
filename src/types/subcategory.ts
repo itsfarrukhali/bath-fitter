@@ -1,10 +1,11 @@
+// types/subcategory.ts
 import { Product } from "./category";
 
-// types/subcategory.ts
 export interface Category {
   id: number;
   name: string;
   slug: string;
+  z_index?: number | null;
 }
 
 export interface Subcategory {
@@ -12,25 +13,28 @@ export interface Subcategory {
   name: string;
   slug: string;
   categoryId: number;
+  z_index?: number | null;
   category: Category;
   createdAt?: Date;
   updatedAt?: Date;
   _count: {
     products: number;
   };
-  products?: Product[]; // We can define a more specific type if needed
+  products?: Product[];
 }
 
 export interface SubcategoryCreateData {
   name: string;
   slug: string;
   categoryId: number;
+  z_index?: number | null;
 }
 
 export interface SubcategoryUpdateData {
   name?: string;
   slug?: string;
   categoryId?: number;
+  z_index?: number | null;
 }
 
 export interface SubcategoryResponse {

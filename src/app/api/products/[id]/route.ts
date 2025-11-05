@@ -5,6 +5,7 @@ import prisma from "@/lib/prisma";
 import { deleteFromCloudinary } from "@/lib/cloudinary";
 
 type Params = Promise<{ id: string }>;
+
 export async function GET(
   request: NextRequest,
   segmentData: { params: Params }
@@ -21,13 +22,19 @@ export async function GET(
             id: true,
             name: true,
             slug: true,
+            z_index: true,
             showerType: {
               select: { id: true, name: true, slug: true },
             },
           },
         },
         subcategory: {
-          select: { id: true, name: true, slug: true },
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            z_index: true,
+          },
         },
         variants: {
           orderBy: { colorName: "asc" },
@@ -70,8 +77,15 @@ export async function PUT(
     const params = await segmentData.params;
     const { id } = params;
     const body = await request.json();
-    const { name, slug, description, thumbnailUrl, categoryId, subcategoryId } =
-      body;
+    const {
+      name,
+      slug,
+      description,
+      thumbnailUrl,
+      categoryId,
+      subcategoryId,
+      z_index,
+    } = body;
 
     const existingProduct = await prisma.product.findUnique({
       where: { id: parseInt(id) },
@@ -89,6 +103,19 @@ export async function PUT(
         { success: false, message: "Name, slug, and categoryId are required" },
         { status: 400 }
       );
+    }
+
+    // Validate z_index range if provided
+    if (z_index !== undefined && z_index !== null) {
+      if (z_index < 0 || z_index > 100) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: "Z-Index must be between 0 and 100",
+          },
+          { status: 400 }
+        );
+      }
     }
 
     // Check for duplicate slug
@@ -134,6 +161,7 @@ export async function PUT(
         thumbnailUrl: thumbnailUrl?.trim() || null,
         categoryId,
         subcategoryId: subcategoryId || null,
+        ...(z_index !== undefined && { z_index }),
       },
       include: {
         category: {
@@ -141,11 +169,17 @@ export async function PUT(
             id: true,
             name: true,
             slug: true,
+            z_index: true,
             showerType: { select: { id: true, name: true, slug: true } },
           },
         },
         subcategory: {
-          select: { id: true, name: true, slug: true },
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            z_index: true,
+          },
         },
         variants: {
           orderBy: { colorName: "asc" },

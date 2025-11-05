@@ -37,6 +37,7 @@ export interface Product {
   slug: string;
   description?: string;
   thumbnailUrl?: string;
+  _transformedImageUrl?: string;
   imageUrl: string;
   z_index?: number;
   categoryId: number;
@@ -51,7 +52,9 @@ export interface ProductVariant {
   colorName: string;
   colorCode?: string;
   imageUrl: string;
+  plumbing_config?: "LEFT" | "RIGHT" | "BOTH";
   productId: number;
+  _transformedImageUrl?: string;
 }
 
 export interface SelectedProduct {
@@ -60,6 +63,7 @@ export interface SelectedProduct {
   categoryId: number;
   subcategoryId?: number;
   imageUrl?: string;
+  _transformedImageUrl?: string;
 }
 
 export interface ConfiguratorState {

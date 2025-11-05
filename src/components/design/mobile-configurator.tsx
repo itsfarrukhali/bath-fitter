@@ -15,6 +15,7 @@ import {
   SelectedProduct,
 } from "@/types/design";
 import Image, { ImageProps } from "next/image";
+import { PlumbingAwareImage } from "../plumbing-aware-image";
 
 interface MobileConfiguratorProps {
   state: ConfiguratorState;
@@ -235,17 +236,18 @@ export default function MobileConfigurator({
                 <div
                   key={productKey}
                   className="absolute inset-0"
-                  style={{
-                    zIndex,
-                    pointerEvents: "none",
-                  }}
+                  style={{ zIndex, pointerEvents: "none" }}
                 >
-                  <ImageWithFallback
+                  <PlumbingAwareImage
                     src={imageUrl}
                     alt={selectedProduct.product?.name || "Product"}
                     fill
-                    className="object-contain p-4"
-                    sizes="(max-width: 768px) 100vw, 50vw"
+                    className="object-contain p-6"
+                    sizes="100vw"
+                    plumbingConfig={state.configuration.plumbingConfig}
+                    variantPlumbingConfig={
+                      selectedProduct.variant?.plumbing_config
+                    }
                   />
                 </div>
               );
@@ -413,6 +415,7 @@ export default function MobileConfigurator({
                     onSelect={onProductSelect}
                     onVariantSelect={onVariantSelect}
                     getProductKey={getProductKey}
+                    plumbingConfig={state.configuration.plumbingConfig}
                   />
                 ))
               ) : (
@@ -437,6 +440,7 @@ export default function MobileConfigurator({
                     selectedProduct={selectedProduct}
                     onRemoveProduct={onRemoveProduct}
                     onVariantSelect={onVariantSelect}
+                    plumbingConfig={state.configuration.plumbingConfig}
                   />
                 )
               )
@@ -458,11 +462,15 @@ function SelectedProductItem({
   selectedProduct,
   onRemoveProduct,
   onVariantSelect,
+  plumbingConfig,
+  showerTypeId,
 }: {
   productKey: string;
   selectedProduct: SelectedProduct;
   onRemoveProduct: (key: string) => void;
   onVariantSelect: (variant: ProductVariant, product: Product) => void;
+  plumbingConfig?: string;
+  showerTypeId?: number;
 }) {
   if (!selectedProduct || !selectedProduct.product) return null; // Add guard
 
@@ -482,15 +490,14 @@ function SelectedProductItem({
         <div className="flex items-start gap-2 pr-6">
           <div className="flex-shrink-0 w-12 h-12 bg-gray-100 rounded overflow-hidden">
             {selectedProduct.product?.thumbnailUrl ? (
-              <Image
+              <PlumbingAwareImage
                 src={selectedProduct.product.thumbnailUrl}
                 alt={selectedProduct.product.name}
                 className="w-full h-full object-cover"
                 width={48}
                 height={48}
-                onError={(e) => {
-                  e.currentTarget.src = "/images/placeholder.png";
-                }}
+                plumbingConfig={plumbingConfig}
+                variantPlumbingConfig={selectedProduct.variant?.plumbing_config}
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-gray-400">
@@ -556,6 +563,8 @@ function ProductCard({
   selectedProduct,
   onSelect,
   onVariantSelect,
+  plumbingConfig,
+  showerTypeId,
 }: {
   product: Product;
   isSelected: boolean;
@@ -563,6 +572,8 @@ function ProductCard({
   onSelect: (product: Product, variant?: ProductVariant) => void;
   onVariantSelect: (variant: ProductVariant, product: Product) => void;
   getProductKey: (product: Product) => string;
+  plumbingConfig?: string;
+  showerTypeId?: number;
 }) {
   const handleProductClick = () => {
     const firstVariant = product.variants?.[0];
@@ -580,15 +591,16 @@ function ProductCard({
         <div className="flex gap-3">
           <div className="flex-shrink-0 w-16 h-16 bg-gray-100 rounded flex items-center justify-center">
             {product.thumbnailUrl ? (
-              <Image
+              <PlumbingAwareImage
                 src={product.thumbnailUrl}
                 alt={product.name}
-                className="w-full h-full object-cover rounded"
-                onError={(e) => {
-                  e.currentTarget.src = "/images/placeholder.png";
-                }}
-                width={40}
-                height={40}
+                className="w-full h-full object-cover"
+                width={56}
+                height={56}
+                plumbingConfig={plumbingConfig}
+                variantPlumbingConfig={
+                  selectedProduct?.variant?.plumbing_config
+                }
               />
             ) : (
               <div className="w-8 h-8 text-gray-400">📷</div>

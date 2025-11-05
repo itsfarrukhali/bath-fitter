@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from "react";
 import axios, { AxiosError } from "axios";
-import { Loader2, Plus } from "lucide-react";
+import { Loader2, Plus, HelpCircle } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -23,6 +23,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import type { Category, ShowerType } from "@/types/category";
 
@@ -30,12 +36,24 @@ interface Props {
   onCategoryCreated: (category: Category) => void;
 }
 
+// Common z-index examples for reference
+const Z_INDEX_EXAMPLES = [
+  { name: "Base", value: 10 },
+  { name: "Walls", value: 20 },
+  { name: "Wainscoting", value: 25 },
+  { name: "Accessories", value: 35 },
+  { name: "Doors & Rods", value: 40 },
+  { name: "Ceilings", value: 50 },
+  { name: "Faucets", value: 60 },
+];
+
 export default function CreateCategoryModal({ onCategoryCreated }: Props) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [hasSubcategories, setHasSubcategories] = useState(false);
   const [showerTypeId, setShowerTypeId] = useState<string>("");
+  const [zIndex, setZIndex] = useState<number | "">(50); // Default to 50
   const [showerTypes, setShowerTypes] = useState<ShowerType[]>([]);
   const [loading, setLoading] = useState(false);
   const [fetchingShowerTypes, setFetchingShowerTypes] = useState(false);
@@ -73,6 +91,9 @@ export default function CreateCategoryModal({ onCategoryCreated }: Props) {
     if (!name.trim()) return setError("Category name is required");
     if (!slug.trim()) return setError("Slug is required");
     if (!showerTypeId) return setError("Shower type is required");
+    if (zIndex === "" || zIndex < 0 || zIndex > 100) {
+      return setError("Z-Index must be a number between 0 and 100");
+    }
 
     setLoading(true);
     setError(null);
@@ -83,6 +104,7 @@ export default function CreateCategoryModal({ onCategoryCreated }: Props) {
         slug,
         hasSubcategories,
         showerTypeId: parseInt(showerTypeId),
+        z_index: zIndex === 0 ? null : zIndex,
       });
 
       if (!data.success) throw new Error(data.message);
@@ -93,6 +115,7 @@ export default function CreateCategoryModal({ onCategoryCreated }: Props) {
       setSlug("");
       setHasSubcategories(false);
       setShowerTypeId("");
+      setZIndex(50);
       setOpen(false);
     } catch (err: unknown) {
       if (err instanceof AxiosError) {
@@ -119,6 +142,17 @@ export default function CreateCategoryModal({ onCategoryCreated }: Props) {
     setName(value);
     if (!slug) {
       setSlug(generateSlug(value));
+    }
+  };
+
+  const handleZIndexChange = (value: string) => {
+    if (value === "") {
+      setZIndex("");
+    } else {
+      const numValue = parseInt(value);
+      if (!isNaN(numValue)) {
+        setZIndex(numValue);
+      }
     }
   };
 
@@ -190,6 +224,50 @@ export default function CreateCategoryModal({ onCategoryCreated }: Props) {
                 Loading shower types...
               </p>
             )}
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <Label htmlFor="z_index">Z-Index *</Label>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <HelpCircle className="h-4 w-4 text-muted-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs">
+                    <p className="font-semibold mb-2">What is Z-Index?</p>
+                    <p className="text-sm mb-2">
+                      Z-Index determines the stacking order of elements in the
+                      3D configurator. Lower numbers render behind higher
+                      numbers.
+                    </p>
+                    <p className="text-xs">
+                      Examples: Base (10), Walls (20), Wainscoting (25),
+                      Accessories (35), Doors & Rods (40), Ceilings (50),
+                      Faucets (60)
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+            <Input
+              id="z_index"
+              type="number"
+              min="0"
+              max="100"
+              placeholder="50"
+              value={zIndex}
+              onChange={(e) => handleZIndexChange(e.target.value)}
+            />
+            <div className="flex flex-wrap gap-1 text-xs text-muted-foreground">
+              <span>Common values:</span>
+              {Z_INDEX_EXAMPLES.map((example, index) => (
+                <span key={example.name} className="flex items-center">
+                  {example.name} ({example.value})
+                  {index < Z_INDEX_EXAMPLES.length - 1 && <span>,</span>}
+                </span>
+              ))}
+            </div>
           </div>
 
           <div className="flex items-center space-x-2">
