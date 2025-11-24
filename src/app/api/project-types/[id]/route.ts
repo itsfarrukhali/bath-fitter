@@ -1,22 +1,27 @@
-// app/api/project-types/[id]/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { ProjectTypeUpdateData } from "@/types/project-type";
 import { createUnauthorizedResponse, getAuthenticatedUser } from "@/lib/auth";
+import { createSuccessResponse } from "@/lib/api-response";
+import { handleApiError, NotFoundError, ConflictError } from "@/lib/error-handler";
+import { projectTypeUpdateSchema } from "@/schemas/api-schemas";
+import { validateData, validateIdParam } from "@/lib/validation";
 
-type Params = Promise<{ id: string }>;
-
-// GET - Fetch a specific project type by ID
+/**
+ * GET /api/project-types/[id]
+ * Fetch a single project type by ID
+ */
 export async function GET(
-  _request: NextRequest,
-  segmentData: { params: Params }
+  request: NextRequest,
+  { params }: { params: { id: string } }
 ) {
   try {
-    const params = await segmentData.params;
-    const { id } = params;
+    const id = validateIdParam(params.id);
+    if (!id) {
+      throw new Error("Invalid ID format");
+    }
 
     const projectType = await prisma.projectType.findUnique({
-      where: { id: parseInt(id) },
+      where: { id },
       include: {
         showerTypes: {
           include: {
@@ -27,6 +32,7 @@ export async function GET(
               },
             },
           },
+          orderBy: { name: "asc" },
         },
         _count: {
           select: {
@@ -37,75 +43,69 @@ export async function GET(
     });
 
     if (!projectType) {
-      return NextResponse.json(
-        { success: false, message: "Project type not found" },
-        { status: 404 }
-      );
+      throw new NotFoundError("Project type");
     }
 
-    return NextResponse.json({
-      success: true,
-      data: projectType,
-    });
+    return createSuccessResponse(projectType);
   } catch (error) {
-    console.error("Error fetching project type:", error);
-    return NextResponse.json(
-      { success: false, message: "Failed to fetch project type" },
-      { status: 500 }
-    );
+    return handleApiError(error, `GET /api/project-types/${params.id}`);
   }
 }
 
-// PUT - Update a project type
-export async function PUT(
+/**
+ * PATCH /api/project-types/[id]
+ * Update a project type
+ * Protected endpoint - requires authentication
+ */
+export async function PATCH(
   request: NextRequest,
-  segmentData: { params: Params }
+  { params }: { params: { id: string } }
 ) {
   try {
+    // Authentication check
     const authUser = await getAuthenticatedUser(request);
     if (!authUser) {
       return createUnauthorizedResponse();
     }
 
-    const params = await segmentData.params;
-    const { id } = params;
-    const body: ProjectTypeUpdateData = await request.json();
-    const { name, slug } = body;
+    const id = validateIdParam(params.id);
+    if (!id) {
+      throw new Error("Invalid ID format");
+    }
+
+    // Parse and validate request body
+    const body = await request.json();
+    const validation = validateData(projectTypeUpdateSchema, body);
+
+    if (!validation.success) {
+      throw validation.errors;
+    }
+
+    const { name, slug } = validation.data;
 
     // Check if project type exists
     const existingProjectType = await prisma.projectType.findUnique({
-      where: { id: parseInt(id) },
+      where: { id },
     });
 
     if (!existingProjectType) {
-      return NextResponse.json(
-        { success: false, message: "Project type not found" },
-        { status: 404 }
-      );
+      throw new NotFoundError("Project type");
     }
 
-    // Check if slug is being changed and if it's already taken
+    // Check for slug conflict if slug is being updated
     if (slug && slug !== existingProjectType.slug) {
-      const duplicate = await prisma.projectType.findFirst({
-        where: {
-          slug,
-          id: { not: parseInt(id) }, // exclude current project type
-        },
+      const conflictingProjectType = await prisma.projectType.findUnique({
+        where: { slug },
       });
 
-      if (duplicate) {
-        return NextResponse.json(
-          {
-            success: false,
-            message: "Project type with this slug already exists",
-          },
-          { status: 409 }
-        );
+      if (conflictingProjectType) {
+        throw new ConflictError("Project type with this slug already exists");
       }
     }
 
-    const updatedProjectType = await prisma.projectType.update({
-      where: { id: parseInt(id) },
+    // Update project type
+    const projectType = await prisma.projectType.update({
+      where: { id },
       data: {
         ...(name && { name }),
         ...(slug && { slug }),
@@ -119,36 +119,39 @@ export async function PUT(
       },
     });
 
-    return NextResponse.json({
-      success: true,
-      data: updatedProjectType,
-      message: "Project type updated successfully",
-    });
-  } catch (error) {
-    console.error("Error updating project type:", error);
-    return NextResponse.json(
-      { success: false, message: "Failed to update project type" },
-      { status: 500 }
+    return createSuccessResponse(
+      projectType,
+      "Project type updated successfully"
     );
+  } catch (error) {
+    return handleApiError(error, `PATCH /api/project-types/${params.id}`);
   }
 }
 
-// DELETE - Delete a project type
+/**
+ * DELETE /api/project-types/[id]
+ * Delete a project type
+ * Protected endpoint - requires authentication
+ */
 export async function DELETE(
   request: NextRequest,
-  segmentData: { params: Params }
+  { params }: { params: { id: string } }
 ) {
   try {
+    // Authentication check
     const authUser = await getAuthenticatedUser(request);
     if (!authUser) {
       return createUnauthorizedResponse();
     }
 
-    const params = await segmentData.params;
-    const { id } = params;
+    const id = validateIdParam(params.id);
+    if (!id) {
+      throw new Error("Invalid ID format");
+    }
 
-    const existingProjectType = await prisma.projectType.findUnique({
-      where: { id: parseInt(id) },
+    // Check if project type exists
+    const projectType = await prisma.projectType.findUnique({
+      where: { id },
       include: {
         _count: {
           select: {
@@ -158,38 +161,27 @@ export async function DELETE(
       },
     });
 
-    if (!existingProjectType) {
-      return NextResponse.json(
-        { success: false, message: "Project type not found" },
-        { status: 404 }
+    if (!projectType) {
+      throw new NotFoundError("Project type");
+    }
+
+    // Check if project type has associated shower types
+    if (projectType._count.showerTypes > 0) {
+      throw new Error(
+        `Cannot delete project type with ${projectType._count.showerTypes} associated shower type(s)`
       );
     }
 
-    // Prevent deletion if project type has shower types
-    if (existingProjectType._count.showerTypes > 0) {
-      return NextResponse.json(
-        {
-          success: false,
-          message:
-            "Cannot delete project type that has shower types. Please remove them first.",
-        },
-        { status: 400 }
-      );
-    }
-
+    // Delete project type
     await prisma.projectType.delete({
-      where: { id: parseInt(id) },
+      where: { id },
     });
 
-    return NextResponse.json({
-      success: true,
-      message: "Project type deleted successfully",
-    });
-  } catch (error) {
-    console.error("Error deleting project type:", error);
-    return NextResponse.json(
-      { success: false, message: "Failed to delete project type" },
-      { status: 500 }
+    return createSuccessResponse(
+      { id },
+      "Project type deleted successfully"
     );
+  } catch (error) {
+    return handleApiError(error, `DELETE /api/project-types/${params.id}`);
   }
 }

@@ -1,24 +1,51 @@
-// app/api/subcategories/[id]/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import prisma from "@/lib/prisma";
-import { SubcategoryUpdateData } from "@/types/subcategory";
 import { createUnauthorizedResponse, getAuthenticatedUser } from "@/lib/auth";
+import prisma from "@/lib/prisma";
+import {
+  createSuccessResponse,
+  createErrorResponse,
+} from "@/lib/api-response";
+import { handleApiError, NotFoundError, ConflictError } from "@/lib/error-handler";
+import { subcategoryUpdateSchema } from "@/schemas/api-schemas";
+import { validateData, validateIdParam } from "@/lib/validation";
 
 type Params = Promise<{ id: string }>;
 
-// GET - Fetch a specific subcategory by ID
+/**
+ * GET /api/subcategories/[id]
+ * Fetch a specific subcategory by ID
+ */
 export async function GET(
   _request: NextRequest,
   segmentData: { params: Params }
 ) {
   try {
     const params = await segmentData.params;
-    const { id } = params;
+    const id = validateIdParam(params.id);
+
+    if (!id) {
+      return createErrorResponse("Invalid subcategory ID", 400);
+    }
 
     const subcategory = await prisma.subcategory.findUnique({
-      where: { id: parseInt(id) },
+      where: { id },
       include: {
         category: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            showerTypeId: true,
+            showerType: {
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+              },
+            },
+          },
+        },
+        template: {
           select: {
             id: true,
             name: true,
@@ -27,12 +54,11 @@ export async function GET(
         },
         products: {
           include: {
-            variants: true,
             _count: {
               select: { variants: true },
             },
           },
-          orderBy: { z_index: "asc" },
+          orderBy: [{ z_index: "asc" }, { name: "asc" }],
         },
         _count: {
           select: {
@@ -43,112 +69,133 @@ export async function GET(
     });
 
     if (!subcategory) {
-      return NextResponse.json(
-        { success: false, message: "Subcategory not found" },
-        { status: 404 }
-      );
+      throw new NotFoundError("Subcategory");
     }
 
-    return NextResponse.json({
-      success: true,
-      data: subcategory,
-    });
+    return createSuccessResponse(subcategory);
   } catch (error) {
-    console.error("Error fetching subcategory:", error);
-    return NextResponse.json(
-      { success: false, message: "Failed to fetch subcategory" },
-      { status: 500 }
-    );
+    return handleApiError(error, "GET /api/subcategories/[id]");
   }
 }
 
-// PUT - Update a subcategory (updated with z_index)
-export async function PUT(
+/**
+ * PATCH /api/subcategories/[id]
+ * Update a subcategory
+ * Protected endpoint - requires authentication
+ */
+export async function PATCH(
   request: NextRequest,
   segmentData: { params: Params }
 ) {
   try {
+    // Authentication check
     const authUser = await getAuthenticatedUser(request);
     if (!authUser) {
       return createUnauthorizedResponse();
     }
 
     const params = await segmentData.params;
-    const { id } = params;
-    const body: SubcategoryUpdateData = await request.json();
-    const { name, slug, categoryId, z_index } = body;
+    const id = validateIdParam(params.id);
+
+    if (!id) {
+      return createErrorResponse("Invalid subcategory ID", 400);
+    }
+
+    // Parse and validate request body
+    const body = await request.json();
+    const validation = validateData(subcategoryUpdateSchema, body);
+
+    if (!validation.success) {
+      throw validation.errors;
+    }
+
+    const { name, slug, categoryId, templateId, z_index, plumbingConfig } =
+      validation.data;
 
     // Check if subcategory exists
     const existingSubcategory = await prisma.subcategory.findUnique({
-      where: { id: parseInt(id) },
+      where: { id },
     });
 
     if (!existingSubcategory) {
-      return NextResponse.json(
-        { success: false, message: "Subcategory not found" },
-        { status: 404 }
-      );
+      throw new NotFoundError("Subcategory");
     }
 
     // Validate z_index range if provided
     if (z_index !== undefined && z_index !== null) {
       if (z_index < 0 || z_index > 100) {
-        return NextResponse.json(
-          {
-            success: false,
-            message: "Z-Index must be between 0 and 100",
-          },
-          { status: 400 }
-        );
+        throw new Error("Z-Index must be between 0 and 100");
       }
     }
 
-    // Check if category exists if being updated
+    // Validate category if being updated
     if (categoryId) {
       const category = await prisma.category.findUnique({
         where: { id: categoryId },
       });
 
       if (!category) {
-        return NextResponse.json(
-          { success: false, message: "Category not found" },
-          { status: 404 }
-        );
+        throw new NotFoundError("Category");
       }
     }
 
-    // Check if slug is being changed and if it's already taken
+    // Validate template if being updated
+    if (templateId) {
+      const template = await prisma.templateSubcategory.findUnique({
+        where: { id: templateId },
+      });
+
+      if (!template) {
+        throw new NotFoundError("Template subcategory");
+      }
+    }
+
+    // Check for duplicate slug if being changed
     if (slug && slug !== existingSubcategory.slug) {
+      const targetCategoryId = categoryId || existingSubcategory.categoryId;
       const duplicate = await prisma.subcategory.findFirst({
         where: {
           slug,
-          categoryId: categoryId || existingSubcategory.categoryId,
-          id: { not: parseInt(id) },
+          categoryId: targetCategoryId,
+          id: { not: id },
         },
       });
 
       if (duplicate) {
-        return NextResponse.json(
-          {
-            success: false,
-            message:
-              "Subcategory with this slug already exists in this category",
-          },
-          { status: 409 }
+        throw new ConflictError(
+          "Subcategory with this slug already exists in this category"
         );
       }
     }
 
+    // Build update data
+    const updateData: any = {};
+    if (name !== undefined) updateData.name = name;
+    if (slug !== undefined) updateData.slug = slug;
+    if (categoryId !== undefined) updateData.categoryId = categoryId;
+    if (templateId !== undefined) updateData.templateId = templateId;
+    if (z_index !== undefined) updateData.z_index = z_index;
+    if (plumbingConfig !== undefined) updateData.plumbingConfig = plumbingConfig;
+
     const updatedSubcategory = await prisma.subcategory.update({
-      where: { id: parseInt(id) },
-      data: {
-        ...(name && { name }),
-        ...(slug && { slug }),
-        ...(categoryId && { categoryId }),
-        ...(z_index !== undefined && { z_index }),
-      },
+      where: { id },
+      data: updateData,
       include: {
         category: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            showerType: {
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+              },
+            },
+          },
+        },
+        template: {
           select: {
             id: true,
             name: true,
@@ -161,7 +208,6 @@ export async function PUT(
               select: { variants: true },
             },
           },
-          orderBy: { z_index: "asc" },
         },
         _count: {
           select: {
@@ -171,36 +217,40 @@ export async function PUT(
       },
     });
 
-    return NextResponse.json({
-      success: true,
-      data: updatedSubcategory,
-      message: "Subcategory updated successfully",
-    });
-  } catch (error) {
-    console.error("Error updating subcategory:", error);
-    return NextResponse.json(
-      { success: false, message: "Failed to update subcategory" },
-      { status: 500 }
+    return createSuccessResponse(
+      updatedSubcategory,
+      "Subcategory updated successfully"
     );
+  } catch (error) {
+    return handleApiError(error, "PATCH /api/subcategories/[id]");
   }
 }
 
-// DELETE - Delete a subcategory (no changes needed)
+/**
+ * DELETE /api/subcategories/[id]
+ * Delete a subcategory
+ * Protected endpoint - requires authentication
+ */
 export async function DELETE(
   request: NextRequest,
   segmentData: { params: Params }
 ) {
   try {
+    // Authentication check
     const authUser = await getAuthenticatedUser(request);
     if (!authUser) {
       return createUnauthorizedResponse();
     }
 
     const params = await segmentData.params;
-    const { id } = params;
+    const id = validateIdParam(params.id);
+
+    if (!id) {
+      return createErrorResponse("Invalid subcategory ID", 400);
+    }
 
     const existingSubcategory = await prisma.subcategory.findUnique({
-      where: { id: parseInt(id) },
+      where: { id },
       include: {
         _count: {
           select: {
@@ -211,37 +261,23 @@ export async function DELETE(
     });
 
     if (!existingSubcategory) {
-      return NextResponse.json(
-        { success: false, message: "Subcategory not found" },
-        { status: 404 }
-      );
+      throw new NotFoundError("Subcategory");
     }
 
     // Prevent deletion if subcategory has products
     if (existingSubcategory._count.products > 0) {
-      return NextResponse.json(
-        {
-          success: false,
-          message:
-            "Cannot delete subcategory that has products. Please remove them first.",
-        },
-        { status: 400 }
+      return createErrorResponse(
+        "Cannot delete subcategory that has products. Please remove them first.",
+        400
       );
     }
 
     await prisma.subcategory.delete({
-      where: { id: parseInt(id) },
+      where: { id },
     });
 
-    return NextResponse.json({
-      success: true,
-      message: "Subcategory deleted successfully",
-    });
+    return createSuccessResponse(null, "Subcategory deleted successfully");
   } catch (error) {
-    console.error("Error deleting subcategory:", error);
-    return NextResponse.json(
-      { success: false, message: "Failed to delete subcategory" },
-      { status: 500 }
-    );
+    return handleApiError(error, "DELETE /api/subcategories/[id]");
   }
 }

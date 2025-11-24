@@ -19,53 +19,6 @@ async function main() {
   });
 
   console.log("✅ Admin created/updated:", admin);
-
-  // 🏷️ Template Category
-  const templateCategory = await prisma.templateCategory.create({
-    data: {
-      name: "Shower Walls",
-      slug: "shower-walls",
-      description: "Template for shower wall categories",
-    },
-  });
-
-  // 🏷️ Template Subcategory
-  const templateSubcategory = await prisma.templateSubcategory.create({
-    data: {
-      name: "Wall Panels",
-      slug: "wall-panels",
-      templateCategoryId: templateCategory.id,
-    },
-  });
-
-  // 🛒 Template Product
-  const templateProduct = await prisma.templateProduct.create({
-    data: {
-      name: "Genova Wall Panel",
-      slug: "genova-wall-panel",
-      templateSubcategoryId: templateSubcategory.id,
-    },
-  });
-
-  // 🎨 Template Variants
-  await prisma.templateVariant.createMany({
-    data: [
-      {
-        colorName: "White Marble",
-        colorCode: "#FFFFFF",
-        imageUrl: "https://cloudinary.com/genova-white.png",
-        templateProductId: templateProduct.id,
-      },
-      {
-        colorName: "Cream",
-        colorCode: "#F5F5DC",
-        imageUrl: "https://cloudinary.com/genova-cream.png",
-        templateProductId: templateProduct.id,
-      },
-    ],
-  });
-
-  console.log("✅ Template seeded successfully!");
 }
 
 // 🚀 Run main

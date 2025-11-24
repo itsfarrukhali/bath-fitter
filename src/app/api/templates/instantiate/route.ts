@@ -1,36 +1,70 @@
-// app/api/templates/instantiate/route.ts
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { createUnauthorizedResponse, getAuthenticatedUser } from "@/lib/auth";
 import prisma from "@/lib/prisma";
-import { PlumbingConfig, PlumbingOptions } from "@/types/template";
+import { PlumbingConfig } from "@prisma/client";
 import { getPlumbingAdjustedImage } from "@/lib/cloudinary";
+import {
+  createSuccessResponse,
+  createErrorResponse,
+} from "@/lib/api-response";
+import { handleApiError, NotFoundError } from "@/lib/error-handler";
+import { z } from "zod";
+import { validateData } from "@/lib/validation";
 
-interface InstantiateRequest {
-  templateCategoryId: number;
-  showerTypeIds: number[];
-  customName?: string;
-  plumbingOptions: PlumbingOptions;
+/**
+ * Zod schema for template instantiation request
+ */
+const instantiateSchema = z.object({
+  templateCategoryId: z.number().int().positive(),
+  showerTypeIds: z.array(z.number().int().positive()).min(1),
+  customName: z.string().optional(),
+  plumbingOptions: z.object({
+    createForLeft: z.boolean(),
+    createForRight: z.boolean(),
+    mirrorImages: z.boolean().default(false),
+  }),
+});
+
+type InstantiateRequest = z.infer<typeof instantiateSchema>;
+
+interface InstantiationResult {
+  showerTypeId: number;
+  plumbingConfig: PlumbingConfig;
+  success: boolean;
+  message?: string;
+  categoryId?: number;
 }
 
+/**
+ * POST /api/templates/instantiate
+ * Instantiate a template category for specific shower types
+ * Creates categories, subcategories, products, and variants based on template
+ * Supports LEFT/RIGHT plumbing configurations with optional image mirroring
+ */
 export async function POST(request: NextRequest) {
   try {
+    // Authentication check
     const authUser = await getAuthenticatedUser(request);
     if (!authUser) {
       return createUnauthorizedResponse();
     }
 
-    const body: InstantiateRequest = await request.json();
+    // Parse and validate request body
+    const body = await request.json();
+    const validation = validateData(instantiateSchema, body);
+
+    if (!validation.success) {
+      throw validation.errors;
+    }
+
     const { templateCategoryId, showerTypeIds, customName, plumbingOptions } =
-      body;
+      validation.data;
 
     // Validate plumbing options
     if (!plumbingOptions.createForLeft && !plumbingOptions.createForRight) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "At least one plumbing option must be selected",
-        },
-        { status: 400 }
+      return createErrorResponse(
+        "At least one plumbing option (LEFT or RIGHT) must be selected",
+        400
       );
     }
 
@@ -56,19 +90,10 @@ export async function POST(request: NextRequest) {
     });
 
     if (!template) {
-      return NextResponse.json(
-        { success: false, message: "Template not found" },
-        { status: 404 }
-      );
+      throw new NotFoundError("Template category");
     }
 
-    const results: Array<{
-      showerTypeId: number;
-      plumbingConfig: PlumbingConfig;
-      success: boolean;
-      message?: string;
-      categoryId?: number;
-    }> = [];
+    const results: InstantiationResult[] = [];
 
     // Process each shower type
     for (const showerTypeId of showerTypeIds) {
@@ -111,22 +136,22 @@ export async function POST(request: NextRequest) {
               success: false,
               message: `Template already instantiated for ${
                 showerType.name
-              } with ${plumbingConfig.toLowerCase()} plumbing.`,
+              } with ${plumbingConfig.toLowerCase()} plumbing`,
             });
             continue;
           }
 
           // Create category instance
+          const categoryName = customName || template.name;
           const category = await prisma.category.create({
             data: {
-              name: `${
-                customName || template.name
-              } - ${plumbingConfig.toLowerCase()}`,
+              name: `${categoryName} - ${plumbingConfig.toLowerCase()}`,
               slug: `${template.slug}-${plumbingConfig.toLowerCase()}`,
               templateId: template.id,
               showerTypeId: showerTypeId,
               plumbingConfig: plumbingConfig,
               hasSubcategories: template.templateSubcategories.length > 0,
+              z_index: 50, // Default z_index
             },
           });
 
@@ -143,6 +168,7 @@ export async function POST(request: NextRequest) {
             plumbingConfig,
             success: true,
             categoryId: category.id,
+            message: `Successfully instantiated for ${showerType.name}`,
           });
         } catch (error) {
           console.error(
@@ -159,22 +185,62 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({
-      success: true,
-      data: results,
-      message: "Template instantiation completed",
-    });
-  } catch (error) {
-    console.error("Error instantiating template:", error);
-    return NextResponse.json(
-      { success: false, message: "Failed to instantiate template" },
-      { status: 500 }
+    // Check if any succeeded
+    const successCount = results.filter((r) => r.success).length;
+    const totalCount = results.length;
+
+    return createSuccessResponse(
+      results,
+      `Template instantiation completed: ${successCount}/${totalCount} successful`,
+      201
     );
+  } catch (error) {
+    return handleApiError(error, "POST /api/templates/instantiate");
   }
 }
 
+/**
+ * Helper function to create template instances
+ * Creates subcategories and products based on template structure
+ */
 async function createTemplateInstances(
-  template: any,
+  template: {
+    templateSubcategories: Array<{
+      id: number;
+      name: string;
+      slug: string;
+      templateProducts: Array<{
+        id: number;
+        name: string;
+        slug: string;
+        description: string | null;
+        thumbnailUrl: string | null;
+        templateVariants: Array<{
+          id: number;
+          colorName: string;
+          colorCode: string | null;
+          imageUrl: string;
+          publicId: string | null;
+          plumbingConfig: PlumbingConfig;
+        }>;
+      }>;
+    }>;
+    templateProducts: Array<{
+      id: number;
+      name: string;
+      slug: string;
+      description: string | null;
+      thumbnailUrl: string | null;
+      templateVariants: Array<{
+        id: number;
+        colorName: string;
+        colorCode: string | null;
+        imageUrl: string;
+        publicId: string | null;
+        plumbingConfig: PlumbingConfig;
+      }>;
+    }>;
+  },
   categoryId: number,
   targetPlumbingConfig: PlumbingConfig,
   mirrorImages: boolean
@@ -188,6 +254,7 @@ async function createTemplateInstances(
         templateId: templateSubcategory.id,
         categoryId: categoryId,
         plumbingConfig: targetPlumbingConfig,
+        z_index: 50, // Default z_index
       },
     });
 
@@ -215,8 +282,26 @@ async function createTemplateInstances(
   }
 }
 
+/**
+ * Helper function to create a product instance with variants
+ * Handles image mirroring for different plumbing configurations
+ */
 async function createProductInstance(
-  templateProduct: any,
+  templateProduct: {
+    id: number;
+    name: string;
+    slug: string;
+    description: string | null;
+    thumbnailUrl: string | null;
+    templateVariants: Array<{
+      id: number;
+      colorName: string;
+      colorCode: string | null;
+      imageUrl: string;
+      publicId: string | null;
+      plumbingConfig: PlumbingConfig;
+    }>;
+  },
   categoryId: number,
   subcategoryId: number | null,
   targetPlumbingConfig: PlumbingConfig,
@@ -228,12 +313,11 @@ async function createProductInstance(
       slug: templateProduct.slug,
       description: templateProduct.description,
       thumbnailUrl: templateProduct.thumbnailUrl,
-      template: templateProduct.id
-        ? { connect: { id: templateProduct.id } }
-        : undefined,
-      category: { connect: { id: categoryId } },
-      ...(subcategoryId && { subcategory: { connect: { id: subcategoryId } } }),
+      templateId: templateProduct.id,
+      categoryId: categoryId,
+      ...(subcategoryId && { subcategoryId }),
       plumbingConfig: targetPlumbingConfig,
+      z_index: 50, // Default z_index
     },
   });
 
@@ -260,10 +344,8 @@ async function createProductInstance(
         imageUrl: finalImageUrl,
         publicId: templateVariant.publicId,
         plumbing_config: targetPlumbingConfig,
-        templateVariant: templateVariant.id
-          ? { connect: { id: templateVariant.id } }
-          : undefined,
-        product: { connect: { id: product.id } },
+        templateVariantId: templateVariant.id,
+        productId: product.id,
       },
     });
   }

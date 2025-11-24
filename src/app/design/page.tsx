@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   Printer,
-  Save,
   Loader2,
   Smartphone,
   Monitor,
@@ -25,76 +24,19 @@ import {
 } from "@/types/design";
 import DesktopConfigurator from "@/components/design/desktop-configurator";
 import MobileConfigurator from "@/components/design/mobile-configurator";
+import { SaveDesignDialog } from "@/components/design/save-design-dialog";
+import { LoadDesignDialog } from "@/components/design/load-design-dialog";
 import axios from "axios";
 import { Badge } from "@/components/ui/badge";
-import { transformCloudinaryUrl } from "@/utils/cloudinaryTransform";
 import { getProductImageUrl } from "@/utils/productImageHelper";
 import {
   getAppropriateVariant,
-  getVariantForPlumbingConfig,
 } from "@/utils/plumbingProductHelper";
 
 interface Position {
   x: number;
   y: number;
 }
-
-// Utility functions for localStorage
-const storageUtils = {
-  // Get current designs array
-  getCurrentDesigns: (): string[] => {
-    if (typeof window === "undefined") return [];
-    try {
-      return JSON.parse(localStorage.getItem("currentDesigns") || "[]");
-    } catch {
-      return [];
-    }
-  },
-
-  // Save design with proper error handling
-  saveDesign: (designId: string, state: ConfiguratorState): boolean => {
-    try {
-      if (typeof window === "undefined") return false;
-
-      // Save design data
-      localStorage.setItem(designId, JSON.stringify(state));
-
-      // Update current designs array
-      const currentDesigns = storageUtils.getCurrentDesigns();
-      if (!currentDesigns.includes(designId)) {
-        currentDesigns.push(designId);
-        localStorage.setItem("currentDesigns", JSON.stringify(currentDesigns));
-      }
-
-      return true;
-    } catch (error) {
-      console.error("Error saving design:", error);
-      return false;
-    }
-  },
-
-  // Cleanup old designs (keep only last 10)
-  cleanupOldDesigns: () => {
-    try {
-      const currentDesigns = storageUtils.getCurrentDesigns();
-      if (currentDesigns.length > 10) {
-        const designsToRemove = currentDesigns.slice(
-          0,
-          currentDesigns.length - 10
-        );
-        designsToRemove.forEach((designId) => {
-          localStorage.removeItem(designId);
-        });
-        localStorage.setItem(
-          "currentDesigns",
-          JSON.stringify(currentDesigns.slice(-10))
-        );
-      }
-    } catch (error) {
-      console.error("Error cleaning up designs:", error);
-    }
-  },
-};
 
 export default function DesignPage() {
   const router = useRouter();
@@ -204,8 +146,6 @@ export default function DesignPage() {
     const showerType = showerTypeMap[showerTypeId] || "main";
     const plumbing = plumbingConfig || "right";
 
-    // For local images, we have separate files
-    // For Cloudinary images, we use transformations
     return `/images/shower-base-main-${showerType}-${plumbing}.png`;
   };
 
@@ -224,11 +164,6 @@ export default function DesignPage() {
   const handleProductSelect = (product: Product, variant?: ProductVariant) => {
     if (!product) return;
 
-    console.log("Product:", product.name);
-    console.log("Product variants:", product.variants);
-    console.log("Shower Type:", state.configuration.showerTypeId);
-    console.log("Plumbing Config:", state.configuration.plumbingConfig);
-
     // Use enhanced plumbing-aware variant selection
     const plumbingConfig = state.configuration.plumbingConfig ?? "right";
     const showerTypeId = state.configuration.showerTypeId ?? 5;
@@ -239,9 +174,6 @@ export default function DesignPage() {
       showerTypeId
     );
 
-    console.log("Selected variant:", selectedVariant);
-    console.log("Variant plumbing config:", selectedVariant?.plumbing_config);
-
     const productImageUrl = getProductImageUrl(product, selectedVariant);
 
     const productKey = product.subcategoryId
@@ -251,7 +183,7 @@ export default function DesignPage() {
     setState((prev) => {
       const newSelectedProducts = { ...prev.selectedProducts };
 
-      // Door/Rod detection logic (unchanged)
+      // Door/Rod detection logic
       const isDoorOrRod = () => {
         const categorySlug = product.category?.slug?.toLowerCase();
         const subcategorySlug = product.subcategory?.slug?.toLowerCase();
@@ -356,47 +288,29 @@ export default function DesignPage() {
     toast.success("Product removed from design");
   };
 
-  const handleSaveDesign = () => {
-    try {
-      const designData = {
-        configuration: state.configuration,
-        selectedProducts: state.selectedProducts,
-        timestamp: new Date().toISOString(),
-      };
-
-      localStorage.setItem("savedDesign", JSON.stringify(designData));
-      toast.success("Design saved successfully!");
-    } catch (error) {
-      console.error("Error saving design:", error);
-      toast.error("Failed to save design. Please try again.");
-    }
+  const handleLoadDesign = (loadedState: ConfiguratorState) => {
+    setState((prev) => ({
+      ...prev,
+      ...loadedState,
+      // Ensure we keep the current session's base image logic if needed, 
+      // or update it based on the loaded configuration
+      baseImage: getBaseImage(
+        loadedState.configuration.showerTypeId || 5,
+        loadedState.configuration.plumbingConfig
+      ),
+    }));
+    
+    // Also update session storage so refresh works
+    sessionStorage.setItem("showerConfig", JSON.stringify(loadedState.configuration));
   };
 
-  // IMPROVED PRINT FUNCTION
   const handlePrint = () => {
     try {
-      // Generate unique ID for this design session
-      const designId = `design-${Date.now()}-${Math.random()
-        .toString(36)
-        .substr(2, 9)}`;
-
-      // Save design with proper error handling
-      const success = storageUtils.saveDesign(designId, state);
-
-      if (!success) {
-        toast.error("Failed to prepare design for printing");
-        return;
-      }
-
-      // Cleanup old designs
-      storageUtils.cleanupOldDesigns();
-
-      // Debug: Log current designs
-      console.log(
-        "Current designs after save:",
-        storageUtils.getCurrentDesigns()
-      );
-      console.log("Design saved with ID:", designId);
+      // Generate unique ID for this print session
+      const designId = `print-${Date.now()}`;
+      
+      // Save current state to localStorage for the print page to pick up
+      localStorage.setItem(designId, JSON.stringify(state));
 
       // Open print page with design ID
       const printWindow = window.open(
@@ -406,7 +320,6 @@ export default function DesignPage() {
 
       if (!printWindow) {
         toast.error("Please allow popups for printing");
-        return;
       }
     } catch (error) {
       console.error("Error in handlePrint:", error);
@@ -414,7 +327,7 @@ export default function DesignPage() {
     }
   };
 
-  // Zoom and drag handlers (unchanged)
+  // Zoom and drag handlers
   const handleZoomIn = () => {
     setZoomLevel((prev) => {
       const newZoom = Math.min(prev + 0.25, 5);
@@ -527,15 +440,8 @@ export default function DesignPage() {
                 </div>
               </div>
               <div className="flex items-center gap-1 shrink-0 ml-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleSaveDesign}
-                  className="h-9 w-9 p-0 cursor-pointer"
-                  title="Save"
-                >
-                  <Save className="h-4 w-4" />
-                </Button>
+                <SaveDesignDialog state={state} />
+                <LoadDesignDialog onLoad={handleLoadDesign} />
                 <Button
                   variant="ghost"
                   size="sm"
@@ -661,15 +567,8 @@ export default function DesignPage() {
                 <span>{isMobile ? "Mobile" : "Desktop"} View</span>
               </Button>
               <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleSaveDesign}
-                  className="hover:bg-muted/80 transition-colors cursor-pointer"
-                >
-                  <Save className="h-4 w-4 sm:mr-2" />
-                  <span className="hidden sm:inline">Save</span>
-                </Button>
+                <SaveDesignDialog state={state} />
+                <LoadDesignDialog onLoad={handleLoadDesign} />
                 <Button
                   variant="outline"
                   size="sm"

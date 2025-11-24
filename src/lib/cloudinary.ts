@@ -5,7 +5,7 @@ import {
   UploadApiErrorResponse,
 } from "cloudinary";
 import { CloudinaryUploadResponse } from "@/types/cloudinary";
-import { PlumbingConfig } from "@/types/template";
+import { PlumbingConfig } from "@prisma/client";
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,

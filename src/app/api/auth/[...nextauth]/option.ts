@@ -14,7 +14,7 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials) {
         if (!credentials?.identifier || !credentials?.password) {
-          throw new Error("Missing email or passsword");
+          throw new Error("Email/username and password are required");
         }
 
         try {
@@ -26,23 +26,32 @@ export const authOptions: NextAuthOptions = {
               ],
             },
           });
-          console.log("DB Query params:", {
-            identifier: credentials.identifier,
-          });
-          console.log("User found:", user);
+
+          // Only log in development
+          if (process.env.NODE_ENV === "development") {
+            console.log("DB Query params:", {
+              identifier: credentials.identifier,
+            });
+            console.log("User found:", !!user);
+          }
+
           if (!user) {
-            throw new Error("No user found with this email or username");
+            throw new Error("Invalid email/username or password");
           }
+
           if (!user.password) {
-            throw new Error("Password is missing");
+            throw new Error("Account configuration error. Please contact support.");
           }
+
           const isPasswordCorrect = await bcrypt.compare(
             credentials.password,
             user.password
           );
+
           if (!isPasswordCorrect) {
-            throw new Error("Incorrect password");
+            throw new Error("Invalid email/username or password");
           }
+
           // Transform the Prisma User into NextAuth User
           return {
             id: user.id,
@@ -52,8 +61,13 @@ export const authOptions: NextAuthOptions = {
           };
         } catch (err: unknown) {
           const error =
-            err instanceof Error ? err.message : "An error occurred";
-          console.error("Authorize Error:", error);
+            err instanceof Error ? err.message : "Authentication failed";
+          
+          // Only log detailed errors in development
+          if (process.env.NODE_ENV === "development") {
+            console.error("Authorize Error:", error);
+          }
+          
           throw new Error(error);
         }
       },

@@ -31,6 +31,7 @@ export default function CreateTemplateSubcategoryModal({
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [description, setDescription] = useState("");
+  const [zIndex, setZIndex] = useState(10);
   const [loading, setLoading] = useState(false);
 
   // Auto-generate slug when name changes
@@ -58,6 +59,7 @@ export default function CreateTemplateSubcategoryModal({
         name,
         slug,
         description,
+        z_index: zIndex,
         templateCategoryId,
       });
 
@@ -67,6 +69,7 @@ export default function CreateTemplateSubcategoryModal({
         setName("");
         setSlug("");
         setDescription("");
+        setZIndex(10);
         setOpen(false);
       } else {
         toast.error(data.message || "Failed to create template subcategory");
@@ -112,6 +115,19 @@ export default function CreateTemplateSubcategoryModal({
               onChange={(e) => setSlug(e.target.value)}
               placeholder="Auto-generated from name"
             />
+          </div>
+          <div>
+            <Label>Z-Index (Layer Order)</Label>
+            <Input
+              type="number"
+              value={zIndex}
+              onChange={(e) => setZIndex(Number(e.target.value))}
+              placeholder="e.g., 10, 20, 30"
+              min="0"
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Higher values appear on top. Default is 10.
+            </p>
           </div>
           <div>
             <Label>Description</Label>

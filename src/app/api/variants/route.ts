@@ -1,67 +1,102 @@
-// app/api/variants/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { createUnauthorizedResponse, getAuthenticatedUser } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { PlumbingConfig } from "@prisma/client";
+import {
+  createSuccessResponse,
+  parsePaginationParams,
+  createPaginatedResponse,
+} from "@/lib/api-response";
+import { handleApiError, NotFoundError, ConflictError } from "@/lib/error-handler";
+import { productVariantCreateSchema } from "@/schemas/api-schemas";
+import { validateData } from "@/lib/validation";
 
-interface VariantCreateData {
-  colorName: string;
-  colorCode?: string;
-  imageUrl: string;
-  publicId?: string;
-  productId: number;
-  plumbing_config?: PlumbingConfig | null;
-}
-
+/**
+ * GET /api/variants
+ * Fetch product variants with optional filtering
+ * Requires productId parameter
+ */
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const productId = searchParams.get("productId");
+    const { page, limit, skip } = parsePaginationParams(searchParams);
 
     if (!productId) {
-      return NextResponse.json(
-        { success: false, message: "productId is required" },
-        { status: 400 }
-      );
+      throw new Error("productId is required");
     }
 
-    const variants = await prisma.productVariant.findMany({
-      where: { productId: parseInt(productId) },
-      orderBy: { colorName: "asc" },
-      include: {
-        product: {
-          select: {
-            id: true,
-            name: true,
-            category: {
-              select: { id: true, name: true, showerTypeId: true },
+    // Fetch variants with pagination
+    const [variants, total] = await Promise.all([
+      prisma.productVariant.findMany({
+        where: { productId: parseInt(productId) },
+        skip,
+        take: limit,
+        orderBy: { colorName: "asc" },
+        include: {
+          product: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+              category: {
+                select: { 
+                  id: true, 
+                  name: true, 
+                  showerTypeId: true,
+                  showerType: {
+                    select: {
+                      id: true,
+                      name: true,
+                      slug: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+          templateVariant: {
+            select: {
+              id: true,
+              colorName: true,
+              colorCode: true,
             },
           },
         },
-      },
-    });
+      }),
+      prisma.productVariant.count({ where: { productId: parseInt(productId) } }),
+    ]);
 
-    return NextResponse.json({
-      success: true,
-      data: variants,
-    });
-  } catch (error) {
-    console.error("Error fetching variants:", error);
-    return NextResponse.json(
-      { success: false, message: "Failed to fetch variants" },
-      { status: 500 }
+    return createPaginatedResponse(
+      variants,
+      { page, limit, total }
     );
+  } catch (error) {
+    return handleApiError(error, "GET /api/variants");
   }
 }
 
+/**
+ * POST /api/variants
+ * Create a new product variant
+ * Protected endpoint - requires authentication
+ */
 export async function POST(request: NextRequest) {
   try {
+    // Authentication check
     const authUser = await getAuthenticatedUser(request);
     if (!authUser) {
       return createUnauthorizedResponse();
     }
 
-    const body: VariantCreateData = await request.json();
+    // Parse and validate request body
+    const body = await request.json();
+    const validation = validateData(productVariantCreateSchema, body);
+
+    if (!validation.success) {
+      throw validation.errors;
+    }
+
     const {
       colorName,
       colorCode,
@@ -69,30 +104,15 @@ export async function POST(request: NextRequest) {
       publicId,
       productId,
       plumbing_config,
-    } = body;
-
-    if (!colorName?.trim() || !imageUrl?.trim() || !productId) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Color name, image URL, and product ID are required",
-        },
-        { status: 400 }
-      );
-    }
+      templateVariantId,
+    } = validation.data;
 
     // Validate plumbing_config if provided
     if (
       plumbing_config &&
       !Object.values(PlumbingConfig).includes(plumbing_config)
     ) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Invalid plumbing configuration",
-        },
-        { status: 400 }
-      );
+      throw new Error("Invalid plumbing configuration");
     }
 
     // Validate product exists
@@ -102,10 +122,17 @@ export async function POST(request: NextRequest) {
     });
 
     if (!product) {
-      return NextResponse.json(
-        { success: false, message: "Product not found" },
-        { status: 404 }
-      );
+      throw new NotFoundError("Product");
+    }
+
+    // Validate template variant if provided
+    if (templateVariantId) {
+      const templateVariant = await prisma.templateVariant.findUnique({
+        where: { id: templateVariantId },
+      });
+      if (!templateVariant) {
+        throw new NotFoundError("Template variant");
+      }
     }
 
     // Check for duplicate color name in same product
@@ -117,16 +144,12 @@ export async function POST(request: NextRequest) {
     });
 
     if (existingVariant) {
-      return NextResponse.json(
-        {
-          success: false,
-          message:
-            "Variant with this color name already exists in this product",
-        },
-        { status: 409 }
+      throw new ConflictError(
+        "Variant with this color name already exists in this product"
       );
     }
 
+    // Create variant
     const variant = await prisma.productVariant.create({
       data: {
         colorName: colorName.trim(),
@@ -135,33 +158,45 @@ export async function POST(request: NextRequest) {
         publicId: publicId || null,
         productId,
         plumbing_config: plumbing_config || null,
+        templateVariantId: templateVariantId || null,
       },
       include: {
         product: {
           select: {
             id: true,
             name: true,
+            slug: true,
             category: {
-              select: { id: true, name: true, showerType: true },
+              select: { 
+                id: true, 
+                name: true, 
+                showerType: {
+                  select: {
+                    id: true,
+                    name: true,
+                    slug: true,
+                  },
+                },
+              },
             },
+          },
+        },
+        templateVariant: {
+          select: {
+            id: true,
+            colorName: true,
+            colorCode: true,
           },
         },
       },
     });
 
-    return NextResponse.json(
-      {
-        success: true,
-        data: variant,
-        message: "Product variant created successfully",
-      },
-      { status: 201 }
+    return createSuccessResponse(
+      variant,
+      "Product variant created successfully",
+      201
     );
   } catch (error) {
-    console.error("Error creating variant:", error);
-    return NextResponse.json(
-      { success: false, message: "Failed to create variant" },
-      { status: 500 }
-    );
+    return handleApiError(error, "POST /api/variants");
   }
 }

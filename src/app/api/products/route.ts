@@ -1,33 +1,49 @@
-// app/api/products/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { createUnauthorizedResponse, getAuthenticatedUser } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
+import {
+  createPaginatedResponse,
+  createSuccessResponse,
+  parsePaginationParams,
+} from "@/lib/api-response";
+import { handleApiError, NotFoundError, ConflictError } from "@/lib/error-handler";
+import { productCreateSchema } from "@/schemas/api-schemas";
+import { validateData, sanitizeSearchQuery } from "@/lib/validation";
 
-interface ProductCreateData {
-  name: string;
-  slug: string;
-  description?: string;
-  thumbnailUrl?: string;
-  categoryId: number;
-  subcategoryId?: number;
-  z_index?: number | null;
-}
-
+/**
+ * GET /api/products
+ * Fetch products with optional filtering and search
+ * Supports filtering by category and subcategory
+ */
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
+    const { page, limit, skip } = parsePaginationParams(searchParams);
     const categoryId = searchParams.get("categoryId");
     const subcategoryId = searchParams.get("subcategoryId");
-    const page = parseInt(searchParams.get("page") || "1");
-    const limit = parseInt(searchParams.get("limit") || "10");
-    const skip = (page - 1) * limit;
+    const search = sanitizeSearchQuery(searchParams.get("search"));
 
+    // Build where clause
     const whereClause: Prisma.ProductWhereInput = {};
 
-    if (categoryId) whereClause.categoryId = parseInt(categoryId);
-    if (subcategoryId) whereClause.subcategoryId = parseInt(subcategoryId);
+    if (categoryId) {
+      whereClause.categoryId = parseInt(categoryId);
+    }
 
+    if (subcategoryId) {
+      whereClause.subcategoryId = parseInt(subcategoryId);
+    }
+
+    if (search) {
+      whereClause.OR = [
+        { name: { contains: search, mode: "insensitive" } },
+        { slug: { contains: search, mode: "insensitive" } },
+        { description: { contains: search, mode: "insensitive" } },
+      ];
+    }
+
+    // Fetch products with relations
     const [products, total] = await Promise.all([
       prisma.product.findMany({
         where: whereClause,
@@ -63,33 +79,37 @@ export async function GET(request: NextRequest) {
       prisma.product.count({ where: whereClause }),
     ]);
 
-    return NextResponse.json({
-      success: true,
-      data: products,
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages: Math.ceil(total / limit),
-      },
-    });
-  } catch (error) {
-    console.error("Error fetching products:", error);
-    return NextResponse.json(
-      { success: false, message: "Failed to fetch products" },
-      { status: 500 }
+    return createPaginatedResponse(
+      products,
+      { page, limit, total },
+      search ? `Found ${total} product(s)` : undefined
     );
+  } catch (error) {
+    return handleApiError(error, "GET /api/products");
   }
 }
 
+/**
+ * POST /api/products
+ * Create a new product
+ * Protected endpoint - requires authentication
+ */
 export async function POST(request: NextRequest) {
   try {
+    // Authentication check
     const authUser = await getAuthenticatedUser(request);
     if (!authUser) {
       return createUnauthorizedResponse();
     }
 
-    const body: ProductCreateData = await request.json();
+    // Parse and validate request body
+    const body = await request.json();
+    const validation = validateData(productCreateSchema, body);
+
+    if (!validation.success) {
+      throw validation.errors;
+    }
+
     const {
       name,
       slug,
@@ -98,25 +118,13 @@ export async function POST(request: NextRequest) {
       categoryId,
       subcategoryId,
       z_index,
-    } = body;
-
-    if (!name?.trim() || !slug?.trim() || !categoryId) {
-      return NextResponse.json(
-        { success: false, message: "Name, slug, and categoryId are required" },
-        { status: 400 }
-      );
-    }
+      plumbingConfig,
+    } = validation.data;
 
     // Validate z_index range if provided
     if (z_index !== undefined && z_index !== null) {
       if (z_index < 0 || z_index > 100) {
-        return NextResponse.json(
-          {
-            success: false,
-            message: "Z-Index must be between 0 and 100",
-          },
-          { status: 400 }
-        );
+        throw new Error("Z-Index must be between 0 and 100");
       }
     }
 
@@ -127,10 +135,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (!category) {
-      return NextResponse.json(
-        { success: false, message: "Category not found" },
-        { status: 404 }
-      );
+      throw new NotFoundError("Category");
     }
 
     // Validate subcategory if provided and get its z_index
@@ -140,10 +145,7 @@ export async function POST(request: NextRequest) {
         where: { id: subcategoryId, categoryId },
       });
       if (!subcategory) {
-        return NextResponse.json(
-          { success: false, message: "Subcategory not found in this category" },
-          { status: 404 }
-        );
+        throw new NotFoundError("Subcategory in this category");
       }
     }
 
@@ -159,10 +161,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (existingProduct) {
-      return NextResponse.json(
-        { success: false, message: "Product with this slug already exists" },
-        { status: 409 }
-      );
+      throw new ConflictError("Product with this slug already exists");
     }
 
     // Determine default z_index: use provided value, otherwise inherit from parent
@@ -177,6 +176,7 @@ export async function POST(request: NextRequest) {
       finalZIndex = 50;
     }
 
+    // Create product
     const product = await prisma.product.create({
       data: {
         name: name.trim(),
@@ -186,6 +186,7 @@ export async function POST(request: NextRequest) {
         categoryId,
         subcategoryId: subcategoryId || null,
         z_index: finalZIndex,
+        ...(plumbingConfig && { plumbingConfig }),
       },
       include: {
         category: {
@@ -210,19 +211,12 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return NextResponse.json(
-      {
-        success: true,
-        data: product,
-        message: "Product created successfully",
-      },
-      { status: 201 }
+    return createSuccessResponse(
+      product,
+      "Product created successfully",
+      201
     );
   } catch (error) {
-    console.error("Error creating product:", error);
-    return NextResponse.json(
-      { success: false, message: "Failed to create product" },
-      { status: 500 }
-    );
+    return handleApiError(error, "POST /api/products");
   }
 }

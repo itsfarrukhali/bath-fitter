@@ -1,22 +1,41 @@
-// app/api/project-types/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { ProjectTypeCreateData } from "@/types/project-type";
 import { createUnauthorizedResponse, getAuthenticatedUser } from "@/lib/auth";
+import {
+  createPaginatedResponse,
+  createSuccessResponse,
+  parsePaginationParams,
+  addCacheHeaders,
+} from "@/lib/api-response";
+import { handleApiError, NotFoundError, ConflictError } from "@/lib/error-handler";
+import { projectTypeCreateSchema, projectTypeUpdateSchema } from "@/schemas/api-schemas";
+import { validateData, sanitizeSearchQuery } from "@/lib/validation";
 
-// GET - Fetch paginated project types
+/**
+ * GET /api/project-types
+ * Fetch paginated project types with optional search
+ * Public endpoint with caching
+ */
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const page = parseInt(searchParams.get("page") || "1");
-    const limit = parseInt(searchParams.get("limit") || "10");
-    const skip = (page - 1) * limit;
+    const { page, limit, skip } = parsePaginationParams(searchParams);
+    const search = sanitizeSearchQuery(searchParams.get("search"));
 
-    // Add cache control for public API
-    const cacheControl = "public, s-maxage=3600, stale-while-revalidate=86400";
+    // Build where clause for search
+    const whereClause = search
+      ? {
+          OR: [
+            { name: { contains: search, mode: "insensitive" as const } },
+            { slug: { contains: search, mode: "insensitive" as const } },
+          ],
+        }
+      : {};
 
+    // Fetch project types with counts
     const [projectTypes, total] = await Promise.all([
       prisma.projectType.findMany({
+        where: whereClause,
         skip,
         take: limit,
         include: {
@@ -28,53 +47,44 @@ export async function GET(request: NextRequest) {
         },
         orderBy: { name: "asc" },
       }),
-      prisma.projectType.count(),
+      prisma.projectType.count({ where: whereClause }),
     ]);
 
-    const response = NextResponse.json({
-      success: true,
-      data: projectTypes,
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages: Math.ceil(total / limit),
-      },
-    });
-
-    // Set cache headers
-    response.headers.set("Cache-Control", cacheControl);
-    return response;
-  } catch (error) {
-    console.error("Error fetching project types:", error);
-    return NextResponse.json(
-      { success: false, message: "Failed to fetch project types" },
-      { status: 500 }
+    const response = createPaginatedResponse(
+      projectTypes,
+      { page, limit, total },
+      search ? `Found ${total} project type(s)` : undefined
     );
+
+    // Add cache headers for public API
+    return addCacheHeaders(response, 3600);
+  } catch (error) {
+    return handleApiError(error, "GET /api/project-types");
   }
 }
 
-// POST - Create a new project type
+/**
+ * POST /api/project-types
+ * Create a new project type
+ * Protected endpoint - requires authentication
+ */
 export async function POST(request: NextRequest) {
   try {
+    // Authentication check
     const authUser = await getAuthenticatedUser(request);
     if (!authUser) {
       return createUnauthorizedResponse();
     }
 
-    const body: ProjectTypeCreateData = await request.json();
-    const { name, slug } = body;
+    // Parse and validate request body
+    const body = await request.json();
+    const validation = validateData(projectTypeCreateSchema, body);
 
-    // Validation
-    if (!name || !slug) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Name and slug are required",
-        },
-        { status: 400 }
-      );
+    if (!validation.success) {
+      throw validation.errors;
     }
+
+    const { name, slug } = validation.data;
 
     // Check for existing project type with same slug
     const existingProjectType = await prisma.projectType.findUnique({
@@ -82,15 +92,10 @@ export async function POST(request: NextRequest) {
     });
 
     if (existingProjectType) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Project type with this slug already exists",
-        },
-        { status: 409 }
-      );
+      throw new ConflictError("Project type with this slug already exists");
     }
 
+    // Create project type
     const projectType = await prisma.projectType.create({
       data: {
         name,
@@ -105,19 +110,12 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return NextResponse.json(
-      {
-        success: true,
-        data: projectType,
-        message: "Project type created successfully",
-      },
-      { status: 201 }
+    return createSuccessResponse(
+      projectType,
+      "Project type created successfully",
+      201
     );
   } catch (error) {
-    console.error("Error creating project type:", error);
-    return NextResponse.json(
-      { success: false, message: "Failed to create project type" },
-      { status: 500 }
-    );
+    return handleApiError(error, "POST /api/project-types");
   }
 }

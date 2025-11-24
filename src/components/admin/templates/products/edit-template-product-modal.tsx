@@ -16,6 +16,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
 import generateSlug from "@/utils/generateSlug";
 
@@ -41,6 +48,8 @@ export default function EditTemplateProductModal({
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [description, setDescription] = useState("");
+  const [zIndex, setZIndex] = useState(10);
+  const [plumbingConfig, setPlumbingConfig] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [isSlugManual, setIsSlugManual] = useState(false);
 
@@ -49,6 +58,8 @@ export default function EditTemplateProductModal({
       setName(templateProduct.name);
       setSlug(templateProduct.slug);
       setDescription(templateProduct.description || "");
+      setZIndex((templateProduct as any).z_index || 10);
+      setPlumbingConfig((templateProduct as any).plumbing_config || null);
       setIsSlugManual(false);
     }
   }, [open, templateProduct]);
@@ -85,6 +96,8 @@ export default function EditTemplateProductModal({
           name: name.trim(),
           slug: slug.trim(),
           description: description.trim() || null,
+          z_index: zIndex,
+          plumbing_config: plumbingConfig,
         }
       );
 
@@ -162,6 +175,44 @@ export default function EditTemplateProductModal({
                 rows={3}
                 disabled={loading}
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="zIndex">Z-Index (Layer Order)</Label>
+              <Input
+                id="zIndex"
+                type="number"
+                placeholder="e.g., 10, 20, 30"
+                value={zIndex}
+                onChange={(e) => setZIndex(Number(e.target.value))}
+                min="0"
+                disabled={loading}
+              />
+              <p className="text-xs text-muted-foreground">
+                Higher values appear on top. Default is 10.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="plumbingConfig">Plumbing Configuration (Optional)</Label>
+              <Select
+                value={plumbingConfig || "none"}
+                onValueChange={(value) => setPlumbingConfig(value === "none" ? null : value)}
+                disabled={loading}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select plumbing type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No Specific Plumbing</SelectItem>
+                  <SelectItem value="LEFT">Left Plumbing</SelectItem>
+                  <SelectItem value="RIGHT">Right Plumbing</SelectItem>
+                  <SelectItem value="BOTH">Both Plumbing Types</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Leave as "No Specific Plumbing" if product works with all plumbing types.
+              </p>
             </div>
           </div>
 

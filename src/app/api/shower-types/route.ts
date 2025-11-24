@@ -1,30 +1,51 @@
-// app/api/shower-types/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { ShowerTypeCreateData } from "@/types/shower-types";
 import { createUnauthorizedResponse, getAuthenticatedUser } from "@/lib/auth";
+import {
+  createPaginatedResponse,
+  createSuccessResponse,
+  parsePaginationParams,
+  addCacheHeaders,
+} from "@/lib/api-response";
+import { handleApiError, NotFoundError, ConflictError } from "@/lib/error-handler";
+import { showerTypeCreateSchema, showerTypeUpdateSchema } from "@/schemas/api-schemas";
+import { validateData, sanitizeSearchQuery } from "@/lib/validation";
 
-// GET - Fetch paginated shower types
+/**
+ * GET /api/shower-types
+ * Fetch paginated shower types with optional filtering and search
+ * Public endpoint with caching
+ */
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const page = parseInt(searchParams.get("page") || "1");
-    const limit = parseInt(searchParams.get("limit") || "10");
+    const { page, limit, skip } = parsePaginationParams(searchParams);
     const projectTypeId = searchParams.get("projectTypeId");
-    const skip = (page - 1) * limit;
-    const cacheControl = "public, s-maxage=3600, stale-while-revalidate=86400";
-    // Input validation
+    const search = sanitizeSearchQuery(searchParams.get("search"));
+
+    // Input validation for projectTypeId
     if (projectTypeId && isNaN(parseInt(projectTypeId))) {
-      return NextResponse.json(
-        { success: false, message: "Invalid projectTypeId" },
-        { status: 400 }
-      );
+      throw new Error("Invalid projectTypeId");
     }
 
-    const whereClause = projectTypeId
-      ? { projectTypeId: parseInt(projectTypeId) }
-      : {};
+    // Build where clause
+    const whereClause: {
+      projectTypeId?: number;
+      OR?: Array<{ name: { contains: string; mode: "insensitive" } } | { slug: { contains: string; mode: "insensitive" } }>;
+    } = {};
 
+    if (projectTypeId) {
+      whereClause.projectTypeId = parseInt(projectTypeId);
+    }
+
+    if (search) {
+      whereClause.OR = [
+        { name: { contains: search, mode: "insensitive" as const } },
+        { slug: { contains: search, mode: "insensitive" as const } },
+      ];
+    }
+
+    // Fetch shower types with counts
     const [showerTypes, total] = await Promise.all([
       prisma.showerType.findMany({
         where: whereClause,
@@ -60,50 +81,41 @@ export async function GET(request: NextRequest) {
       prisma.showerType.count({ where: whereClause }),
     ]);
 
-    const response = NextResponse.json({
-      success: true,
-      data: showerTypes,
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages: Math.ceil(total / limit),
-      },
-    });
-
-    response.headers.set("Cache-Control", cacheControl);
-
-    return response;
-  } catch (error) {
-    console.error("Error fetching shower types:", error);
-    return NextResponse.json(
-      { success: false, message: "Failed to fetch shower types" },
-      { status: 500 }
+    const response = createPaginatedResponse(
+      showerTypes,
+      { page, limit, total },
+      search ? `Found ${total} shower type(s)` : undefined
     );
+
+    // Add cache headers for public API
+    return addCacheHeaders(response, 3600);
+  } catch (error) {
+    return handleApiError(error, "GET /api/shower-types");
   }
 }
 
-// POST - Create a new shower type
+/**
+ * POST /api/shower-types
+ * Create a new shower type
+ * Protected endpoint - requires authentication
+ */
 export async function POST(request: NextRequest) {
   try {
+    // Authentication check
     const authUser = await getAuthenticatedUser(request);
     if (!authUser) {
       return createUnauthorizedResponse();
     }
 
-    const body: ShowerTypeCreateData = await request.json();
-    const { name, slug, projectTypeId, baseImage } = body;
+    // Parse and validate request body
+    const body = await request.json();
+    const validation = validateData(showerTypeCreateSchema, body);
 
-    // Validation
-    if (!name || !slug || !projectTypeId) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Name, slug, and projectTypeId are required",
-        },
-        { status: 400 }
-      );
+    if (!validation.success) {
+      throw validation.errors;
     }
+
+    const { name, slug, projectTypeId, baseImage } = validation.data;
 
     // Check if project type exists
     const projectType = await prisma.projectType.findUnique({
@@ -111,10 +123,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (!projectType) {
-      return NextResponse.json(
-        { success: false, message: "Project type not found" },
-        { status: 404 }
-      );
+      throw new NotFoundError("Project type");
     }
 
     // Check for existing shower type with same slug
@@ -123,21 +132,16 @@ export async function POST(request: NextRequest) {
     });
 
     if (existingShowerType) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Shower type with this slug already exists",
-        },
-        { status: 409 }
-      );
+      throw new ConflictError("Shower type with this slug already exists");
     }
 
+    // Create shower type
     const showerType = await prisma.showerType.create({
       data: {
         name,
         slug,
         projectTypeId,
-        baseImage,
+        baseImage: baseImage || null,
       },
       include: {
         projectType: {
@@ -166,19 +170,13 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return NextResponse.json(
-      {
-        success: true,
-        data: showerType,
-        message: "Shower type created successfully",
-      },
-      { status: 201 }
+    return createSuccessResponse(
+      showerType,
+      "Shower type created successfully",
+      201
     );
   } catch (error) {
-    console.error("Error creating shower type:", error);
-    return NextResponse.json(
-      { success: false, message: "Failed to create shower type" },
-      { status: 500 }
-    );
+    return handleApiError(error, "POST /api/shower-types");
   }
 }
+

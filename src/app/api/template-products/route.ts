@@ -1,66 +1,114 @@
-// app/api/template-products/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { createUnauthorizedResponse, getAuthenticatedUser } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
+import {
+  createPaginatedResponse,
+  createSuccessResponse,
+  parsePaginationParams,
+} from "@/lib/api-response";
+import { handleApiError, NotFoundError, ConflictError } from "@/lib/error-handler";
+import { templateProductCreateSchema } from "@/schemas/api-schemas";
+import { validateData, sanitizeSearchQuery } from "@/lib/validation";
 
+/**
+ * GET /api/template-products
+ * Fetch template products with pagination and filtering
+ */
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
+    const { page, limit, skip } = parsePaginationParams(searchParams);
     const templateCategoryId = searchParams.get("templateCategoryId");
     const templateSubcategoryId = searchParams.get("templateSubcategoryId");
+    const search = sanitizeSearchQuery(searchParams.get("search"));
 
-    // Use Prisma's generated types instead of 'any'
+    // Build where clause
     const whereClause: Prisma.TemplateProductWhereInput = {};
 
     if (templateCategoryId) {
       whereClause.templateCategoryId = parseInt(templateCategoryId);
     }
+
     if (templateSubcategoryId) {
       whereClause.templateSubcategoryId = parseInt(templateSubcategoryId);
     }
 
-    const templateProducts = await prisma.templateProduct.findMany({
-      where: whereClause,
-      include: {
-        templateVariants: true,
-        templateCategory: {
-          select: { id: true, name: true, slug: true },
-        },
-        templateSubcategory: {
-          select: { id: true, name: true, slug: true },
-        },
-        _count: {
-          select: {
-            templateVariants: true,
-            products: true,
+    if (search) {
+      whereClause.OR = [
+        { name: { contains: search, mode: "insensitive" } },
+        { slug: { contains: search, mode: "insensitive" } },
+        { description: { contains: search, mode: "insensitive" } },
+      ];
+    }
+
+    // Fetch template products
+    const [templateProducts, total] = await Promise.all([
+      prisma.templateProduct.findMany({
+        where: whereClause,
+        skip,
+        take: limit,
+        include: {
+          templateCategory: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+            },
+          },
+          templateSubcategory: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+            },
+          },
+          templateVariants: {
+            orderBy: { colorName: "asc" },
+          },
+          _count: {
+            select: {
+              templateVariants: true,
+              products: true,
+            },
           },
         },
-      },
-      orderBy: { name: "desc" },
-    });
+        orderBy: { name: "asc" },
+      }),
+      prisma.templateProduct.count({ where: whereClause }),
+    ]);
 
-    return NextResponse.json({
-      success: true,
-      data: templateProducts,
-    });
-  } catch (error) {
-    console.error("Error fetching template products:", error);
-    return NextResponse.json(
-      { success: false, message: "Failed to fetch template products" },
-      { status: 500 }
+    return createPaginatedResponse(
+      templateProducts,
+      { page, limit, total },
+      search ? `Found ${total} template product(s)` : undefined
     );
+  } catch (error) {
+    return handleApiError(error, "GET /api/template-products");
   }
 }
 
+/**
+ * POST /api/template-products
+ * Create a new template product
+ * Protected endpoint - requires authentication
+ */
 export async function POST(request: NextRequest) {
   try {
+    // Authentication check
     const authUser = await getAuthenticatedUser(request);
     if (!authUser) {
       return createUnauthorizedResponse();
     }
 
+    // Parse and validate request body
     const body = await request.json();
+    const validation = validateData(templateProductCreateSchema, body);
+
+    if (!validation.success) {
+      throw validation.errors;
+    }
+
     const {
       name,
       slug,
@@ -68,48 +116,25 @@ export async function POST(request: NextRequest) {
       thumbnailUrl,
       templateCategoryId,
       templateSubcategoryId,
-    } = body;
+    } = validation.data;
 
-    if (!name || !slug) {
-      return NextResponse.json(
-        { success: false, message: "Name and slug are required" },
-        { status: 400 }
-      );
-    }
-
-    if (!templateCategoryId && !templateSubcategoryId) {
-      return NextResponse.json(
-        {
-          success: false,
-          message:
-            "Either templateCategoryId or templateSubcategoryId is required",
-        },
-        { status: 400 }
-      );
-    }
-
-    // Check parent exists
+    // Validate template category if provided
     if (templateCategoryId) {
       const templateCategory = await prisma.templateCategory.findUnique({
         where: { id: templateCategoryId },
       });
       if (!templateCategory) {
-        return NextResponse.json(
-          { success: false, message: "Template category not found" },
-          { status: 404 }
-        );
+        throw new NotFoundError("Template category");
       }
     }
 
+    // Validate template subcategory if provided
     if (templateSubcategoryId) {
       const templateSubcategory = await prisma.templateSubcategory.findUnique({
         where: { id: templateSubcategoryId },
       });
       if (!templateSubcategory) {
-        return NextResponse.json(
-          { success: false, message: "Template subcategory not found" },
-          { status: 404 }
-        );
+        throw new NotFoundError("Template subcategory");
       }
     }
 
@@ -118,55 +143,56 @@ export async function POST(request: NextRequest) {
       where: {
         slug,
         OR: [
-          { templateCategoryId: templateCategoryId || undefined },
-          { templateSubcategoryId: templateSubcategoryId || undefined },
+          { templateCategoryId: templateCategoryId || null },
+          { templateSubcategoryId: templateSubcategoryId || null },
         ],
       },
     });
 
     if (existingProduct) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Template product with this slug already exists",
-        },
-        { status: 409 }
-      );
+      throw new ConflictError("Template product with this slug already exists");
     }
 
+    // Create template product
     const templateProduct = await prisma.templateProduct.create({
       data: {
         name,
         slug,
-        description,
+        description: description || null,
         thumbnailUrl: thumbnailUrl || null,
-        templateCategoryId,
-        templateSubcategoryId,
+        templateCategoryId: templateCategoryId || null,
+        templateSubcategoryId: templateSubcategoryId || null,
       },
       include: {
-        templateVariants: true,
         templateCategory: {
-          select: { id: true, name: true, slug: true },
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+          },
         },
         templateSubcategory: {
-          select: { id: true, name: true, slug: true },
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+          },
+        },
+        _count: {
+          select: {
+            templateVariants: true,
+            products: true,
+          },
         },
       },
     });
 
-    return NextResponse.json(
-      {
-        success: true,
-        data: templateProduct,
-        message: "Template product created successfully",
-      },
-      { status: 201 }
+    return createSuccessResponse(
+      templateProduct,
+      "Template product created successfully",
+      201
     );
   } catch (error) {
-    console.error("Error creating template product:", error);
-    return NextResponse.json(
-      { success: false, message: "Failed to create template product" },
-      { status: 500 }
-    );
+    return handleApiError(error, "POST /api/template-products");
   }
 }

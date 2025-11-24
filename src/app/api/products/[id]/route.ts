@@ -1,30 +1,48 @@
-// app/api/products/[id]/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { createUnauthorizedResponse, getAuthenticatedUser } from "@/lib/auth";
 import prisma from "@/lib/prisma";
-import { deleteFromCloudinary } from "@/lib/cloudinary";
+import {
+  createSuccessResponse,
+  createErrorResponse,
+} from "@/lib/api-response";
+import { handleApiError, NotFoundError, ConflictError } from "@/lib/error-handler";
+import { productUpdateSchema } from "@/schemas/api-schemas";
+import { validateData, validateIdParam } from "@/lib/validation";
 
 type Params = Promise<{ id: string }>;
 
+/**
+ * GET /api/products/[id]
+ * Fetch a specific product by ID
+ */
 export async function GET(
-  request: NextRequest,
+  _request: NextRequest,
   segmentData: { params: Params }
 ) {
   try {
     const params = await segmentData.params;
-    const { id } = params;
+    const id = validateIdParam(params.id);
+
+    if (!id) {
+      return createErrorResponse("Invalid product ID", 400);
+    }
 
     const product = await prisma.product.findUnique({
-      where: { id: parseInt(id) },
+      where: { id },
       include: {
         category: {
           select: {
             id: true,
             name: true,
             slug: true,
+            showerTypeId: true,
             z_index: true,
             showerType: {
-              select: { id: true, name: true, slug: true },
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+              },
             },
           },
         },
@@ -34,6 +52,13 @@ export async function GET(
             name: true,
             slug: true,
             z_index: true,
+          },
+        },
+        template: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
           },
         },
         variants: {
@@ -46,37 +71,46 @@ export async function GET(
     });
 
     if (!product) {
-      return NextResponse.json(
-        { success: false, message: "Product not found" },
-        { status: 404 }
-      );
+      throw new NotFoundError("Product");
     }
 
-    return NextResponse.json({
-      success: true,
-      data: product,
-    });
+    return createSuccessResponse(product);
   } catch (error) {
-    console.error("Error fetching product:", error);
-    return NextResponse.json(
-      { success: false, message: "Failed to fetch product" },
-      { status: 500 }
-    );
+    return handleApiError(error, "GET /api/products/[id]");
   }
 }
 
-export async function PUT(
+/**
+ * PATCH /api/products/[id]
+ * Update a product
+ * Protected endpoint - requires authentication
+ */
+export async function PATCH(
   request: NextRequest,
   segmentData: { params: Params }
 ) {
   try {
+    // Authentication check
     const authUser = await getAuthenticatedUser(request);
     if (!authUser) {
       return createUnauthorizedResponse();
     }
+
     const params = await segmentData.params;
-    const { id } = params;
+    const id = validateIdParam(params.id);
+
+    if (!id) {
+      return createErrorResponse("Invalid product ID", 400);
+    }
+
+    // Parse and validate request body
     const body = await request.json();
+    const validation = validateData(productUpdateSchema, body);
+
+    if (!validation.success) {
+      throw validation.errors;
+    }
+
     const {
       name,
       slug,
@@ -84,93 +118,114 @@ export async function PUT(
       thumbnailUrl,
       categoryId,
       subcategoryId,
+      templateId,
       z_index,
-    } = body;
+      plumbingConfig,
+    } = validation.data;
 
+    // Check if product exists
     const existingProduct = await prisma.product.findUnique({
-      where: { id: parseInt(id) },
+      where: { id },
     });
 
     if (!existingProduct) {
-      return NextResponse.json(
-        { success: false, message: "Product not found" },
-        { status: 404 }
-      );
-    }
-
-    if (!name?.trim() || !slug?.trim() || !categoryId) {
-      return NextResponse.json(
-        { success: false, message: "Name, slug, and categoryId are required" },
-        { status: 400 }
-      );
+      throw new NotFoundError("Product");
     }
 
     // Validate z_index range if provided
     if (z_index !== undefined && z_index !== null) {
       if (z_index < 0 || z_index > 100) {
-        return NextResponse.json(
-          {
-            success: false,
-            message: "Z-Index must be between 0 and 100",
-          },
-          { status: 400 }
-        );
+        throw new Error("Z-Index must be between 0 and 100");
       }
     }
 
-    // Check for duplicate slug
-    if (slug.trim() !== existingProduct.slug) {
-      const duplicateProduct = await prisma.product.findFirst({
+    // Validate category if being updated
+    if (categoryId) {
+      const category = await prisma.category.findUnique({
+        where: { id: categoryId },
+      });
+
+      if (!category) {
+        throw new NotFoundError("Category");
+      }
+    }
+
+    // Validate subcategory if being updated
+    if (subcategoryId) {
+      const targetCategoryId = categoryId || existingProduct.categoryId;
+      const subcategory = await prisma.subcategory.findUnique({
+        where: { id: subcategoryId, categoryId: targetCategoryId },
+      });
+
+      if (!subcategory) {
+        throw new NotFoundError("Subcategory in this category");
+      }
+    }
+
+    // Validate template if being updated
+    if (templateId) {
+      const template = await prisma.templateProduct.findUnique({
+        where: { id: templateId },
+      });
+
+      if (!template) {
+        throw new NotFoundError("Template product");
+      }
+    }
+
+    // Check for duplicate slug if being changed
+    if (slug && slug !== existingProduct.slug) {
+      const targetCategoryId = categoryId || existingProduct.categoryId;
+      const targetSubcategoryId =
+        subcategoryId !== undefined
+          ? subcategoryId
+          : existingProduct.subcategoryId;
+
+      const duplicate = await prisma.product.findFirst({
         where: {
-          slug: slug.trim(),
+          slug,
           OR: [
-            { categoryId, subcategoryId: null },
-            { subcategoryId: subcategoryId || undefined },
+            { categoryId: targetCategoryId, subcategoryId: null },
+            { subcategoryId: targetSubcategoryId || undefined },
           ],
-          id: { not: parseInt(id) },
+          id: { not: id },
         },
       });
 
-      if (duplicateProduct) {
-        return NextResponse.json(
-          { success: false, message: "Product with this slug already exists" },
-          { status: 409 }
-        );
+      if (duplicate) {
+        throw new ConflictError("Product with this slug already exists");
       }
     }
 
-    // Delete old thumbnail if changed
-    if (
-      thumbnailUrl &&
-      thumbnailUrl !== existingProduct.thumbnailUrl &&
-      existingProduct.thumbnailUrl
-    ) {
-      try {
-        await deleteFromCloudinary(existingProduct.thumbnailUrl);
-      } catch (error) {
-        console.error("Failed to delete old thumbnail:", error);
-      }
-    }
+    // Build update data
+    const updateData: any = {};
+    if (name !== undefined) updateData.name = name;
+    if (slug !== undefined) updateData.slug = slug;
+    if (description !== undefined) updateData.description = description;
+    if (thumbnailUrl !== undefined) updateData.thumbnailUrl = thumbnailUrl;
+    if (categoryId !== undefined) updateData.categoryId = categoryId;
+    if (subcategoryId !== undefined) updateData.subcategoryId = subcategoryId;
+    if (templateId !== undefined) updateData.templateId = templateId;
+    if (z_index !== undefined) updateData.z_index = z_index;
+    if (plumbingConfig !== undefined) updateData.plumbingConfig = plumbingConfig;
 
     const updatedProduct = await prisma.product.update({
-      where: { id: parseInt(id) },
-      data: {
-        name: name.trim(),
-        slug: slug.trim(),
-        description: description?.trim() || null,
-        thumbnailUrl: thumbnailUrl?.trim() || null,
-        categoryId,
-        subcategoryId: subcategoryId || null,
-        ...(z_index !== undefined && { z_index }),
-      },
+      where: { id },
+      data: updateData,
       include: {
         category: {
           select: {
             id: true,
             name: true,
             slug: true,
+            showerType: {
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+              },
+            },
             z_index: true,
-            showerType: { select: { id: true, name: true, slug: true } },
           },
         },
         subcategory: {
@@ -181,88 +236,76 @@ export async function PUT(
             z_index: true,
           },
         },
-        variants: {
-          orderBy: { colorName: "asc" },
+        template: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+          },
         },
+        variants: true,
         _count: { select: { variants: true } },
       },
     });
 
-    return NextResponse.json({
-      success: true,
-      data: updatedProduct,
-      message: "Product updated successfully",
-    });
+    return createSuccessResponse(updatedProduct, "Product updated successfully");
   } catch (error) {
-    console.error("Error updating product:", error);
-    return NextResponse.json(
-      { success: false, message: "Failed to update product" },
-      { status: 500 }
-    );
+    return handleApiError(error, "PATCH /api/products/[id]");
   }
 }
 
+/**
+ * DELETE /api/products/[id]
+ * Delete a product
+ * Protected endpoint - requires authentication
+ */
 export async function DELETE(
   request: NextRequest,
   segmentData: { params: Params }
 ) {
   try {
+    // Authentication check
     const authUser = await getAuthenticatedUser(request);
     if (!authUser) {
       return createUnauthorizedResponse();
     }
 
     const params = await segmentData.params;
-    const { id } = params;
+    const id = validateIdParam(params.id);
 
-    const product = await prisma.product.findUnique({
-      where: { id: parseInt(id) },
-      include: { variants: true },
+    if (!id) {
+      return createErrorResponse("Invalid product ID", 400);
+    }
+
+    const existingProduct = await prisma.product.findUnique({
+      where: { id },
+      include: {
+        _count: {
+          select: {
+            variants: true,
+          },
+        },
+      },
     });
 
-    if (!product) {
-      return NextResponse.json(
-        { success: false, message: "Product not found" },
-        { status: 404 }
+    if (!existingProduct) {
+      throw new NotFoundError("Product");
+    }
+
+    // Prevent deletion if product has variants
+    if (existingProduct._count.variants > 0) {
+      return createErrorResponse(
+        "Cannot delete product that has variants. Please remove them first.",
+        400
       );
     }
 
-    // Delete thumbnail
-    if (product.thumbnailUrl) {
-      try {
-        await deleteFromCloudinary(product.thumbnailUrl);
-      } catch (error) {
-        console.error("Failed to delete product thumbnail:", error);
-      }
-    }
-
-    // Delete variant images
-    for (const variant of product.variants) {
-      if (variant.publicId) {
-        try {
-          await deleteFromCloudinary(variant.publicId);
-        } catch (error) {
-          console.error(
-            `Failed to delete variant image ${variant.publicId}:`,
-            error
-          );
-        }
-      }
-    }
-
     await prisma.product.delete({
-      where: { id: parseInt(id) },
+      where: { id },
     });
 
-    return NextResponse.json({
-      success: true,
-      message: "Product deleted successfully",
-    });
+    return createSuccessResponse(null, "Product deleted successfully");
   } catch (error) {
-    console.error("Error deleting product:", error);
-    return NextResponse.json(
-      { success: false, message: "Failed to delete product" },
-      { status: 500 }
-    );
+    return handleApiError(error, "DELETE /api/products/[id]");
   }
 }

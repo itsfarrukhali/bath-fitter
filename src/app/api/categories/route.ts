@@ -1,11 +1,21 @@
-// app/api/categories/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { PlumbingConfig, Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
-import { CategoryCreateData } from "@/types/category";
 import { getAuthenticatedUser, createUnauthorizedResponse } from "@/lib/auth";
+import {
+  createPaginatedResponse,
+  createSuccessResponse,
+  parsePaginationParams,
+} from "@/lib/api-response";
+import { handleApiError, NotFoundError, ConflictError } from "@/lib/error-handler";
+import { categoryCreateSchema } from "@/schemas/api-schemas";
+import { validateData, sanitizeSearchQuery } from "@/lib/validation";
 
-// GET - Fetch paginated categories
+/**
+ * GET /api/categories
+ * Fetch categories with optional filtering
+ * Supports both admin and customer-facing modes
+ */
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -13,7 +23,9 @@ export async function GET(request: NextRequest) {
     const includeProducts = searchParams.get("includeProducts") === "true";
     const forAdmin = searchParams.get("forAdmin") === "true";
     const plumbingConfig = searchParams.get("plumbingConfig");
+    const search = sanitizeSearchQuery(searchParams.get("search"));
 
+    // Validate and normalize plumbing config
     const normalizedPlumbingConfig = plumbingConfig
       ? (plumbingConfig.toUpperCase() as PlumbingConfig)
       : undefined;
@@ -21,14 +33,13 @@ export async function GET(request: NextRequest) {
       ? Object.values(PlumbingConfig).includes(normalizedPlumbingConfig)
       : undefined;
 
+    // Build plumbing variant filter
     const plumbingVariantFilter: Prisma.ProductVariantWhereInput | undefined =
       isValidPlumbingConfig
         ? {
             OR: [
               { plumbing_config: normalizedPlumbingConfig },
               { plumbing_config: PlumbingConfig.BOTH },
-              { plumbing_config: PlumbingConfig.LEFT },
-              { plumbing_config: PlumbingConfig.RIGHT },
               { plumbing_config: null },
             ],
           }
@@ -41,82 +52,93 @@ export async function GET(request: NextRequest) {
             ],
           };
 
-    // If forAdmin=true, return all categories without showerTypeId requirement
+    // Admin mode - return all categories with pagination
     if (forAdmin) {
-      const page = parseInt(searchParams.get("page") || "1");
-      const limit = parseInt(searchParams.get("limit") || "6");
-      const skip = (page - 1) * limit;
+      const { page, limit, skip } = parsePaginationParams(searchParams);
 
-      // Get total count for pagination
-      const totalCount = await prisma.category.count();
+      // Build where clause for admin
+      const whereClause: Prisma.CategoryWhereInput = {};
+      
+      if (search) {
+        whereClause.OR = [
+          { name: { contains: search, mode: "insensitive" } },
+          { slug: { contains: search, mode: "insensitive" } },
+        ];
+      }
 
-      const categories = await prisma.category.findMany({
-        skip,
-        take: limit,
-        include: {
-          showerType: {
-            select: { id: true, name: true, slug: true },
-          },
-          subcategories: {
-            include: {
-              _count: {
-                select: { products: true },
+      if (showerTypeId) {
+        whereClause.showerTypeId = parseInt(showerTypeId);
+      }
+
+      const [categories, total] = await Promise.all([
+        prisma.category.findMany({
+          where: whereClause,
+          skip,
+          take: limit,
+          include: {
+            showerType: {
+              select: { id: true, name: true, slug: true },
+            },
+            subcategories: {
+              include: {
+                _count: {
+                  select: { products: true },
+                },
+              },
+              orderBy: { z_index: "asc" },
+            },
+            products: {
+              include: {
+                _count: {
+                  select: { variants: true },
+                },
+              },
+              orderBy: { z_index: "asc" },
+            },
+            _count: {
+              select: {
+                products: true,
+                subcategories: true,
               },
             },
-            orderBy: { z_index: "asc" },
           },
-          products: {
-            include: {
-              _count: {
-                select: { variants: true },
-              },
-            },
-            orderBy: { z_index: "asc" },
-          },
-          _count: {
-            select: {
-              products: true,
-              subcategories: true,
-            },
-          },
-        },
-        orderBy: [{ z_index: "asc" }, { name: "asc" }],
-      });
+          orderBy: [{ z_index: "asc" }, { name: "asc" }],
+        }),
+        prisma.category.count({ where: whereClause }),
+      ]);
 
-      const totalPages = Math.ceil(totalCount / limit);
-
-      return NextResponse.json({
-        success: true,
-        data: categories,
-        pagination: {
-          page,
-          limit,
-          totalCount,
-          totalPages,
-        },
-      });
-    }
-
-    // Original logic for customer-facing API
-    if (!showerTypeId) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "showerTypeId is required for customer-facing API",
-        },
-        { status: 400 }
+      return createPaginatedResponse(
+        categories,
+        { page, limit, total },
+        search ? `Found ${total} category(ies)` : undefined
       );
     }
 
+    // Customer-facing mode - requires showerTypeId
+    if (!showerTypeId) {
+      throw new Error("showerTypeId is required for customer-facing API");
+    }
+
+    // Build where clause for customer
+    const whereClause: Prisma.CategoryWhereInput = {
+      showerTypeId: parseInt(showerTypeId),
+    };
+
+    if (search) {
+      whereClause.OR = [
+        { name: { contains: search, mode: "insensitive" } },
+        { slug: { contains: search, mode: "insensitive" } },
+      ];
+    }
+
+    if (includeProducts) {
+      whereClause.products = {
+        some: {},
+      };
+    }
+
     const categories = await prisma.category.findMany({
-      where: {
-        showerTypeId: parseInt(showerTypeId),
-        ...(includeProducts && {
-          products: {
-            some: {},
-          },
-        }),
-      },
+      where: whereClause,
       include: {
         showerType: {
           select: { id: true, name: true, slug: true },
@@ -180,87 +202,55 @@ export async function GET(request: NextRequest) {
       orderBy: [{ z_index: "asc" }, { name: "asc" }],
     });
 
-    // Type-safe filter function
-    interface SubcategoryWithProducts {
-      products?: Array<{ variants: Array<unknown> }>;
-      z_index?: number | null;
-    }
+    // Filter out categories with no products (if includeProducts is true)
+    const filteredCategories = includeProducts
+      ? categories.filter((category) => {
+          const hasDirectProducts =
+            category.products && category.products.length > 0;
 
-    interface CategoryWithRelations {
-      products?: Array<{ z_index?: number | null }>;
-      subcategories?: SubcategoryWithProducts[];
-      z_index?: number | null;
-    }
+          const hasSubcategoryProducts = category.subcategories?.some(
+            (sub: { products?: unknown[] }) => sub.products && sub.products.length > 0
+          );
 
-    // Filter out categories that have no products after including variants condition
-    const filteredCategories = (categories as CategoryWithRelations[]).filter(
-      (category) => {
-        const hasDirectProducts =
-          category.products && category.products.length > 0;
+          return hasDirectProducts || hasSubcategoryProducts;
+        })
+      : categories;
 
-        const hasSubcategoryProducts = category.subcategories?.some(
-          (sub) => sub.products && sub.products.length > 0
-        );
-
-        return hasDirectProducts || hasSubcategoryProducts;
-      }
-    );
-
-    return NextResponse.json({
-      success: true,
-      data: filteredCategories,
-    });
+    return createSuccessResponse(filteredCategories);
   } catch (error) {
-    console.error("Error fetching categories:", error);
-    return NextResponse.json(
-      { success: false, message: "Failed to fetch categories" },
-      { status: 500 }
-    );
+    return handleApiError(error, "GET /api/categories");
   }
 }
 
-// POST - Create a new category (updated with z_index validation)
+/**
+ * POST /api/categories
+ * Create a new category
+ * Protected endpoint - requires authentication
+ */
 export async function POST(request: NextRequest) {
   try {
+    // Authentication check
     const authUser = await getAuthenticatedUser(request);
     if (!authUser) {
       return createUnauthorizedResponse();
     }
 
-    const body: CategoryCreateData = await request.json();
-    const { name, slug, hasSubcategories, showerTypeId, templateId, z_index } =
-      body;
+    // Parse and validate request body
+    const body = await request.json();
+    const validation = validateData(categoryCreateSchema, body);
 
-    // Validation
-    if (!name || !slug || !showerTypeId) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Name, Slug, and Shower Type Id are required",
-        },
-        { status: 400 }
-      );
+    if (!validation.success) {
+      throw validation.errors;
     }
 
-    // Validate z_index range if provided
+    const { name, slug, hasSubcategories, showerTypeId, templateId, z_index, plumbingConfig } =
+      validation.data;
+
+    // Validate z_index
     if (z_index !== undefined && z_index !== null) {
       if (z_index < 0 || z_index > 100) {
-        return NextResponse.json(
-          {
-            success: false,
-            message: "Z-Index must be between 0 and 100",
-          },
-          { status: 400 }
-        );
+        throw new Error("Z-Index must be between 0 and 100");
       }
-    } else {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Z-Index is required",
-        },
-        { status: 400 }
-      );
     }
 
     // If using template, verify it exists
@@ -269,10 +259,7 @@ export async function POST(request: NextRequest) {
         where: { id: templateId },
       });
       if (!template) {
-        return NextResponse.json(
-          { success: false, message: "Template not found" },
-          { status: 404 }
-        );
+        throw new NotFoundError("Template");
       }
     }
 
@@ -281,10 +268,7 @@ export async function POST(request: NextRequest) {
       where: { id: showerTypeId },
     });
     if (!showerType) {
-      return NextResponse.json(
-        { success: false, message: "Shower type not found" },
-        { status: 404 }
-      );
+      throw new NotFoundError("Shower type");
     }
 
     // Check for existing category with same slug in this shower type
@@ -292,23 +276,21 @@ export async function POST(request: NextRequest) {
       where: { slug, showerTypeId },
     });
     if (existingCategory) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Category with this slug already exists in this shower type",
-        },
-        { status: 409 }
+      throw new ConflictError(
+        "Category with this slug already exists in this shower type"
       );
     }
 
+    // Create category
     const category = await prisma.category.create({
       data: {
         name,
         slug,
         hasSubcategories: hasSubcategories || false,
         showerTypeId,
-        templateId,
+        templateId: templateId || null,
         z_index: z_index ?? 50,
+        plumbingConfig: plumbingConfig || PlumbingConfig.LEFT,
       },
       include: {
         showerType: { select: { id: true, name: true, slug: true } },
@@ -317,19 +299,12 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return NextResponse.json(
-      {
-        success: true,
-        data: category,
-        message: "Category created successfully",
-      },
-      { status: 201 }
+    return createSuccessResponse(
+      category,
+      "Category created successfully",
+      201
     );
   } catch (error) {
-    console.error("Error creating category:", error);
-    return NextResponse.json(
-      { success: false, message: "Failed to create category" },
-      { status: 500 }
-    );
+    return handleApiError(error, "POST /api/categories");
   }
 }

@@ -1,81 +1,108 @@
-// app/api/template-subcategories/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { createUnauthorizedResponse, getAuthenticatedUser } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
+import {
+  createPaginatedResponse,
+  createSuccessResponse,
+  parsePaginationParams,
+} from "@/lib/api-response";
+import { handleApiError, NotFoundError, ConflictError } from "@/lib/error-handler";
+import { templateSubcategoryCreateSchema } from "@/schemas/api-schemas";
+import { validateData, sanitizeSearchQuery } from "@/lib/validation";
 
+/**
+ * GET /api/template-subcategories
+ * Fetch template subcategories with pagination and filtering
+ */
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
+    const { page, limit, skip } = parsePaginationParams(searchParams);
     const templateCategoryId = searchParams.get("templateCategoryId");
+    const search = sanitizeSearchQuery(searchParams.get("search"));
 
-    if (!templateCategoryId) {
-      return NextResponse.json(
-        { success: false, message: "templateCategoryId is required" },
-        { status: 400 }
-      );
+    // Build where clause
+    const whereClause: Prisma.TemplateSubcategoryWhereInput = {};
+
+    if (templateCategoryId) {
+      whereClause.templateCategoryId = parseInt(templateCategoryId);
     }
 
-    const templateSubcategories = await prisma.templateSubcategory.findMany({
-      where: { templateCategoryId: parseInt(templateCategoryId) },
-      include: {
-        templateProducts: {
-          include: {
-            templateVariants: true,
-          },
-        },
-        _count: {
-          select: {
-            templateProducts: true,
-            subcategories: true,
-          },
-        },
-      },
-      orderBy: { name: "asc" },
-    });
+    if (search) {
+      whereClause.OR = [
+        { name: { contains: search, mode: "insensitive" } },
+        { slug: { contains: search, mode: "insensitive" } },
+        { description: { contains: search, mode: "insensitive" } },
+      ];
+    }
 
-    return NextResponse.json({
-      success: true,
-      data: templateSubcategories,
-    });
-  } catch (error) {
-    console.error("Error fetching template subcategories:", error);
-    return NextResponse.json(
-      { success: false, message: "Failed to fetch template subcategories" },
-      { status: 500 }
+    // Fetch template subcategories
+    const [templateSubcategories, total] = await Promise.all([
+      prisma.templateSubcategory.findMany({
+        where: whereClause,
+        skip,
+        take: limit,
+        include: {
+          templateCategory: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+            },
+          },
+          _count: {
+            select: {
+              templateProducts: true,
+              subcategories: true,
+            },
+          },
+        },
+        orderBy: { name: "asc" },
+      }),
+      prisma.templateSubcategory.count({ where: whereClause }),
+    ]);
+
+    return createPaginatedResponse(
+      templateSubcategories,
+      { page, limit, total },
+      search ? `Found ${total} template subcategory(ies)` : undefined
     );
+  } catch (error) {
+    return handleApiError(error, "GET /api/template-subcategories");
   }
 }
 
+/**
+ * POST /api/template-subcategories
+ * Create a new template subcategory
+ * Protected endpoint - requires authentication
+ */
 export async function POST(request: NextRequest) {
   try {
+    // Authentication check
     const authUser = await getAuthenticatedUser(request);
     if (!authUser) {
       return createUnauthorizedResponse();
     }
 
+    // Parse and validate request body
     const body = await request.json();
-    const { name, slug, description, templateCategoryId } = body;
+    const validation = validateData(templateSubcategoryCreateSchema, body);
 
-    if (!name || !slug || !templateCategoryId) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Name, slug, and templateCategoryId are required",
-        },
-        { status: 400 }
-      );
+    if (!validation.success) {
+      throw validation.errors;
     }
 
-    // Check if template category exists
+    const { name, slug, description, templateCategoryId } = validation.data;
+
+    // Validate template category exists
     const templateCategory = await prisma.templateCategory.findUnique({
       where: { id: templateCategoryId },
     });
 
     if (!templateCategory) {
-      return NextResponse.json(
-        { success: false, message: "Template category not found" },
-        { status: 404 }
-      );
+      throw new NotFoundError("Template category");
     }
 
     // Check for duplicate slug in same template category
@@ -87,26 +114,25 @@ export async function POST(request: NextRequest) {
     });
 
     if (existingSubcategory) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Template subcategory with this slug already exists",
-        },
-        { status: 409 }
+      throw new ConflictError(
+        "Template subcategory with this slug already exists in this template category"
       );
     }
 
+    // Create template subcategory
     const templateSubcategory = await prisma.templateSubcategory.create({
       data: {
         name,
         slug,
-        description,
+        description: description || null,
         templateCategoryId,
       },
       include: {
-        templateProducts: {
-          include: {
-            templateVariants: true,
+        templateCategory: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
           },
         },
         _count: {
@@ -118,19 +144,12 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return NextResponse.json(
-      {
-        success: true,
-        data: templateSubcategory,
-        message: "Template subcategory created successfully",
-      },
-      { status: 201 }
+    return createSuccessResponse(
+      templateSubcategory,
+      "Template subcategory created successfully",
+      201
     );
   } catch (error) {
-    console.error("Error creating template subcategory:", error);
-    return NextResponse.json(
-      { success: false, message: "Failed to create template subcategory" },
-      { status: 500 }
-    );
+    return handleApiError(error, "POST /api/template-subcategories");
   }
 }

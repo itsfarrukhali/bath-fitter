@@ -1,219 +1,270 @@
-// src/app/api/template-variants/[id]/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { createUnauthorizedResponse, getAuthenticatedUser } from "@/lib/auth";
 import prisma from "@/lib/prisma";
-import { deleteFromCloudinary } from "@/lib/cloudinary";
+import { PlumbingConfig } from "@prisma/client";
+import {
+  createSuccessResponse,
+  createErrorResponse,
+} from "@/lib/api-response";
+import { handleApiError, NotFoundError, ConflictError } from "@/lib/error-handler";
+import { templateVariantUpdateSchema } from "@/schemas/api-schemas";
+import { validateData, validateIdParam } from "@/lib/validation";
 
 type Params = Promise<{ id: string }>;
 
+/**
+ * GET /api/template-variants/[id]
+ * Fetch a specific template variant by ID
+ */
 export async function GET(
-  request: NextRequest,
+  _request: NextRequest,
   segmentData: { params: Params }
 ) {
   try {
     const params = await segmentData.params;
-    const { id } = params;
+    const id = validateIdParam(params.id);
+
+    if (!id) {
+      return createErrorResponse("Invalid template variant ID", 400);
+    }
 
     const templateVariant = await prisma.templateVariant.findUnique({
-      where: { id: parseInt(id) },
+      where: { id },
       include: {
         templateProduct: {
-          include: {
-            templateCategory: { select: { id: true, name: true, slug: true } },
-            templateSubcategory: {
-              select: { id: true, name: true, slug: true },
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            templateCategory: {
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+              },
             },
+            templateSubcategory: {
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+              },
+            },
+          },
+        },
+        ProductVariant: {
+          select: {
+            id: true,
+            colorName: true,
+            productId: true,
+          },
+        },
+        _count: {
+          select: {
+            ProductVariant: true,
           },
         },
       },
     });
 
     if (!templateVariant) {
-      return NextResponse.json(
-        { success: false, message: "Template variant not found" },
-        { status: 404 }
-      );
+      throw new NotFoundError("Template variant");
     }
 
-    return NextResponse.json({ success: true, data: templateVariant });
+    return createSuccessResponse(templateVariant);
   } catch (error) {
-    console.error("Error fetching template variant:", error);
-    return NextResponse.json(
-      { success: false, message: "Failed to fetch template variant" },
-      { status: 500 }
-    );
+    return handleApiError(error, "GET /api/template-variants/[id]");
   }
 }
 
-export async function PUT(
+/**
+ * PATCH /api/template-variants/[id]
+ * Update a template variant
+ * Protected endpoint - requires authentication
+ */
+export async function PATCH(
   request: NextRequest,
   segmentData: { params: Params }
 ) {
   try {
+    // Authentication check
     const authUser = await getAuthenticatedUser(request);
     if (!authUser) {
       return createUnauthorizedResponse();
     }
 
     const params = await segmentData.params;
-    const { id } = params;
+    const id = validateIdParam(params.id);
+
+    if (!id) {
+      return createErrorResponse("Invalid template variant ID", 400);
+    }
+
+    // Parse and validate request body
     const body = await request.json();
-    const { colorName, colorCode, imageUrl, publicId, plumbingConfig } = body;
+    const validation = validateData(templateVariantUpdateSchema, body);
+
+    if (!validation.success) {
+      throw validation.errors;
+    }
+
+    const {
+      colorName,
+      colorCode,
+      imageUrl,
+      publicId,
+      templateProductId,
+      plumbingConfig,
+    } = validation.data;
 
     // Check if template variant exists
-    const existingVariant = await prisma.templateVariant.findUnique({
-      where: { id: parseInt(id) },
-      include: {
-        templateProduct: true,
-      },
+    const existingTemplateVariant = await prisma.templateVariant.findUnique({
+      where: { id },
     });
 
-    if (!existingVariant) {
-      return NextResponse.json(
-        { success: false, message: "Template variant not found" },
-        { status: 404 }
-      );
+    if (!existingTemplateVariant) {
+      throw new NotFoundError("Template variant");
     }
 
-    // Basic validation
-    if (!colorName?.trim()) {
-      return NextResponse.json(
-        { success: false, message: "Color name is required" },
-        { status: 400 }
-      );
+    // Validate plumbing config if provided
+    if (
+      plumbingConfig &&
+      !Object.values(PlumbingConfig).includes(plumbingConfig)
+    ) {
+      throw new Error("Invalid plumbing configuration");
     }
 
-    // Check for duplicate color name
-    if (colorName.trim() !== existingVariant.colorName) {
-      const duplicateVariant = await prisma.templateVariant.findFirst({
+    // Validate template product if being updated
+    if (templateProductId) {
+      const templateProduct = await prisma.templateProduct.findUnique({
+        where: { id: templateProductId },
+      });
+
+      if (!templateProduct) {
+        throw new NotFoundError("Template product");
+      }
+    }
+
+    // Check for duplicate color name if being changed
+    if (colorName && colorName !== existingTemplateVariant.colorName) {
+      const targetTemplateProductId =
+        templateProductId || existingTemplateVariant.templateProductId;
+      const duplicate = await prisma.templateVariant.findFirst({
         where: {
-          colorName: colorName.trim(),
-          templateProductId: existingVariant.templateProductId,
-          id: { not: parseInt(id) },
+          colorName,
+          templateProductId: targetTemplateProductId,
+          id: { not: id },
         },
       });
 
-      if (duplicateVariant) {
-        return NextResponse.json(
-          {
-            success: false,
-            message:
-              "Variant with this color name already exists in this product",
-          },
-          { status: 409 }
+      if (duplicate) {
+        throw new ConflictError(
+          "Template variant with this color name already exists in this template product"
         );
       }
     }
 
-    // Delete old image from Cloudinary if image is being updated
-    if (
-      imageUrl &&
-      imageUrl !== existingVariant.imageUrl &&
-      existingVariant.publicId
-    ) {
-      try {
-        await deleteFromCloudinary(existingVariant.publicId);
-      } catch (error) {
-        console.error(
-          `Failed to delete old image ${existingVariant.publicId}:`,
-          error
-        );
-      }
-    }
+    // Build update data
+    const updateData: any = {};
+    if (colorName !== undefined) updateData.colorName = colorName;
+    if (colorCode !== undefined) updateData.colorCode = colorCode;
+    if (imageUrl !== undefined) updateData.imageUrl = imageUrl;
+    if (publicId !== undefined) updateData.publicId = publicId;
+    if (templateProductId !== undefined)
+      updateData.templateProductId = templateProductId;
+    if (plumbingConfig !== undefined)
+      updateData.plumbingConfig = plumbingConfig;
 
-    const updatedVariant = await prisma.templateVariant.update({
-      where: { id: parseInt(id) },
-      data: {
-        colorName: colorName.trim(),
-        colorCode: colorCode?.trim() || null,
-        imageUrl: imageUrl || existingVariant.imageUrl,
-        publicId: publicId || existingVariant.publicId,
-        plumbingConfig: plumbingConfig || existingVariant.plumbingConfig,
-      },
+    const updatedTemplateVariant = await prisma.templateVariant.update({
+      where: { id },
+      data: updateData,
       include: {
         templateProduct: {
-          include: {
-            templateCategory: { select: { id: true, name: true, slug: true } },
-            templateSubcategory: {
-              select: { id: true, name: true, slug: true },
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            templateCategory: {
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+              },
             },
+          },
+        },
+        _count: {
+          select: {
+            ProductVariant: true,
           },
         },
       },
     });
 
-    return NextResponse.json({
-      success: true,
-      data: updatedVariant,
-      message: "Template variant updated successfully",
-    });
-  } catch (error) {
-    console.error("Error updating template variant:", error);
-    return NextResponse.json(
-      { success: false, message: "Failed to update template variant" },
-      { status: 500 }
+    return createSuccessResponse(
+      updatedTemplateVariant,
+      "Template variant updated successfully"
     );
+  } catch (error) {
+    return handleApiError(error, "PATCH /api/template-variants/[id]");
   }
 }
 
+/**
+ * DELETE /api/template-variants/[id]
+ * Delete a template variant
+ * Protected endpoint - requires authentication
+ */
 export async function DELETE(
   request: NextRequest,
   segmentData: { params: Params }
 ) {
   try {
+    // Authentication check
     const authUser = await getAuthenticatedUser(request);
     if (!authUser) {
       return createUnauthorizedResponse();
     }
 
     const params = await segmentData.params;
-    const { id } = params;
+    const id = validateIdParam(params.id);
 
-    // Check if template variant exists
-    const existingVariant = await prisma.templateVariant.findUnique({
-      where: { id: parseInt(id) },
+    if (!id) {
+      return createErrorResponse("Invalid template variant ID", 400);
+    }
+
+    const existingTemplateVariant = await prisma.templateVariant.findUnique({
+      where: { id },
       include: {
-        templateProduct: {
-          include: {
-            templateCategory: true,
-            templateSubcategory: true,
+        _count: {
+          select: {
+            ProductVariant: true,
           },
         },
       },
     });
 
-    if (!existingVariant) {
-      return NextResponse.json(
-        { success: false, message: "Template variant not found" },
-        { status: 404 }
+    if (!existingTemplateVariant) {
+      throw new NotFoundError("Template variant");
+    }
+
+    // Prevent deletion if template variant is used by product variants
+    if (existingTemplateVariant._count.ProductVariant > 0) {
+      return createErrorResponse(
+        "Cannot delete template variant that is being used by product variants. Please remove them first.",
+        400
       );
     }
 
-    // Delete image from Cloudinary if exists
-    if (existingVariant.publicId) {
-      try {
-        await deleteFromCloudinary(existingVariant.publicId);
-      } catch (error) {
-        console.error(
-          `Failed to delete image ${existingVariant.publicId}:`,
-          error
-        );
-      }
-    }
-
     await prisma.templateVariant.delete({
-      where: { id: parseInt(id) },
+      where: { id },
     });
 
-    return NextResponse.json({
-      success: true,
-      message: "Template variant deleted successfully",
-    });
-  } catch (error) {
-    console.error("Error deleting template variant:", error);
-    return NextResponse.json(
-      { success: false, message: "Failed to delete template variant" },
-      { status: 500 }
+    return createSuccessResponse(
+      null,
+      "Template variant deleted successfully"
     );
+  } catch (error) {
+    return handleApiError(error, "DELETE /api/template-variants/[id]");
   }
 }

@@ -1,22 +1,34 @@
-// app/api/shower-types/[id]/route.ts
 import { NextRequest, NextResponse } from "next/server";
+import { createUnauthorizedResponse, getAuthenticatedUser } from "@/lib/auth";
 import prisma from "@/lib/prisma";
-import { ShowerTypeUpdateData } from "@/types/shower-types";
-import { getAuthenticatedUser, createUnauthorizedResponse } from "@/lib/auth";
+import {
+  createSuccessResponse,
+  createErrorResponse,
+} from "@/lib/api-response";
+import { handleApiError, NotFoundError, ConflictError } from "@/lib/error-handler";
+import { showerTypeUpdateSchema } from "@/schemas/api-schemas";
+import { validateData, validateIdParam } from "@/lib/validation";
 
 type Params = Promise<{ id: string }>;
 
-// GET - Fetch a specific shower type by ID
+/**
+ * GET /api/shower-types/[id]
+ * Fetch a specific shower type by ID
+ */
 export async function GET(
   _request: NextRequest,
   segmentData: { params: Params }
 ) {
   try {
     const params = await segmentData.params;
-    const { id } = params;
+    const id = validateIdParam(params.id);
+
+    if (!id) {
+      return createErrorResponse("Invalid shower type ID", 400);
+    }
 
     const showerType = await prisma.showerType.findUnique({
-      where: { id: parseInt(id) },
+      where: { id },
       include: {
         projectType: {
           select: {
@@ -59,95 +71,92 @@ export async function GET(
     });
 
     if (!showerType) {
-      return NextResponse.json(
-        { success: false, message: "Shower type not found" },
-        { status: 404 }
-      );
+      throw new NotFoundError("Shower type");
     }
 
-    return NextResponse.json({
-      success: true,
-      data: showerType,
-    });
+    return createSuccessResponse(showerType);
   } catch (error) {
-    console.error("Error fetching shower type:", error);
-    return NextResponse.json(
-      { success: false, message: "Failed to fetch shower type" },
-      { status: 500 }
-    );
+    return handleApiError(error, "GET /api/shower-types/[id]");
   }
 }
 
-// PUT - Update a shower type
-export async function PUT(
+/**
+ * PATCH /api/shower-types/[id]
+ * Update a shower type
+ * Protected endpoint - requires authentication
+ */
+export async function PATCH(
   request: NextRequest,
   segmentData: { params: Params }
 ) {
   try {
+    // Authentication check
     const authUser = await getAuthenticatedUser(request);
     if (!authUser) {
       return createUnauthorizedResponse();
     }
 
     const params = await segmentData.params;
-    const { id } = params;
-    const body: ShowerTypeUpdateData = await request.json();
-    const { name, slug, projectTypeId, baseImage } = body;
+    const id = validateIdParam(params.id);
+
+    if (!id) {
+      return createErrorResponse("Invalid shower type ID", 400);
+    }
+
+    // Parse and validate request body
+    const body = await request.json();
+    const validation = validateData(showerTypeUpdateSchema, body);
+
+    if (!validation.success) {
+      throw validation.errors;
+    }
+
+    const { name, slug, projectTypeId, baseImage } = validation.data;
 
     // Check if shower type exists
     const existingShowerType = await prisma.showerType.findUnique({
-      where: { id: parseInt(id) },
+      where: { id },
     });
 
     if (!existingShowerType) {
-      return NextResponse.json(
-        { success: false, message: "Shower type not found" },
-        { status: 404 }
-      );
+      throw new NotFoundError("Shower type");
     }
 
-    // Check if project type exists if being updated
+    // Validate project type if being updated
     if (projectTypeId) {
       const projectType = await prisma.projectType.findUnique({
         where: { id: projectTypeId },
       });
 
       if (!projectType) {
-        return NextResponse.json(
-          { success: false, message: "Project type not found" },
-          { status: 404 }
-        );
+        throw new NotFoundError("Project type");
       }
     }
 
-    // Check if slug is being changed and if it's already taken
+    // Check for duplicate slug if being changed
     if (slug && slug !== existingShowerType.slug) {
       const duplicate = await prisma.showerType.findFirst({
         where: {
           slug,
-          id: { not: parseInt(id) }, // exclude current shower type
+          id: { not: id },
         },
       });
 
       if (duplicate) {
-        return NextResponse.json(
-          {
-            success: false,
-            message: "Shower type with this slug already exists",
-          },
-          { status: 409 }
-        );
+        throw new ConflictError("Shower type with this slug already exists");
       }
     }
 
+    // Build update data
+    const updateData: any = {};
+    if (name !== undefined) updateData.name = name;
+    if (slug !== undefined) updateData.slug = slug;
+    if (projectTypeId !== undefined) updateData.projectTypeId = projectTypeId;
+    if (baseImage !== undefined) updateData.baseImage = baseImage;
+
     const updatedShowerType = await prisma.showerType.update({
-      where: { id: parseInt(id) },
-      data: {
-        ...(name && { name }),
-        ...(slug && { slug }),
-        ...(projectTypeId && { projectTypeId }),
-        ...(baseImage !== undefined && { baseImage }),
-      },
+      where: { id },
+      data: updateData,
       include: {
         projectType: {
           select: {
@@ -175,36 +184,40 @@ export async function PUT(
       },
     });
 
-    return NextResponse.json({
-      success: true,
-      data: updatedShowerType,
-      message: "Shower type updated successfully",
-    });
-  } catch (error) {
-    console.error("Error updating shower type:", error);
-    return NextResponse.json(
-      { success: false, message: "Failed to update shower type" },
-      { status: 500 }
+    return createSuccessResponse(
+      updatedShowerType,
+      "Shower type updated successfully"
     );
+  } catch (error) {
+    return handleApiError(error, "PATCH /api/shower-types/[id]");
   }
 }
 
-// DELETE - Delete a shower type
+/**
+ * DELETE /api/shower-types/[id]
+ * Delete a shower type
+ * Protected endpoint - requires authentication
+ */
 export async function DELETE(
   request: NextRequest,
   segmentData: { params: Params }
 ) {
   try {
+    // Authentication check
     const authUser = await getAuthenticatedUser(request);
     if (!authUser) {
       return createUnauthorizedResponse();
     }
 
     const params = await segmentData.params;
-    const { id } = params;
+    const id = validateIdParam(params.id);
+
+    if (!id) {
+      return createErrorResponse("Invalid shower type ID", 400);
+    }
 
     const existingShowerType = await prisma.showerType.findUnique({
-      where: { id: parseInt(id) },
+      where: { id },
       include: {
         _count: {
           select: {
@@ -216,10 +229,7 @@ export async function DELETE(
     });
 
     if (!existingShowerType) {
-      return NextResponse.json(
-        { success: false, message: "Shower type not found" },
-        { status: 404 }
-      );
+      throw new NotFoundError("Shower type");
     }
 
     // Prevent deletion if shower type has categories or user designs
@@ -227,29 +237,21 @@ export async function DELETE(
       existingShowerType._count.categories > 0 ||
       existingShowerType._count.userDesigns > 0
     ) {
-      return NextResponse.json(
-        {
-          success: false,
-          message:
-            "Cannot delete shower type that has categories or user designs. Please remove them first.",
-        },
-        { status: 400 }
+      return createErrorResponse(
+        "Cannot delete shower type that has categories or user designs. Please remove them first.",
+        400
       );
     }
 
     await prisma.showerType.delete({
-      where: { id: parseInt(id) },
+      where: { id },
     });
 
-    return NextResponse.json({
-      success: true,
-      message: "Shower type deleted successfully",
-    });
-  } catch (error) {
-    console.error("Error deleting shower type:", error);
-    return NextResponse.json(
-      { success: false, message: "Failed to delete shower type" },
-      { status: 500 }
+    return createSuccessResponse(
+      null,
+      "Shower type deleted successfully"
     );
+  } catch (error) {
+    return handleApiError(error, "DELETE /api/shower-types/[id]");
   }
 }

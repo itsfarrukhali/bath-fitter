@@ -53,6 +53,8 @@ export default function CreateTemplateProductModal({
   const [thumbnailUrl, setThumbnailUrl] = useState("");
   const [selectedSubcategoryId, setSelectedSubcategoryId] =
     useState<string>("none");
+  const [zIndex, setZIndex] = useState(10);
+  const [plumbingConfig, setPlumbingConfig] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [isSlugManual, setIsSlugManual] = useState(false);
   const [thumbnailUploading, setThumbnailUploading] = useState(false);
@@ -65,6 +67,8 @@ export default function CreateTemplateProductModal({
       setDescription("");
       setThumbnailUrl("");
       setSelectedSubcategoryId("none");
+      setZIndex(10);
+      setPlumbingConfig(null);
       setIsSlugManual(false);
       setLoading(false);
       setThumbnailUploading(false);
@@ -143,6 +147,8 @@ export default function CreateTemplateProductModal({
         slug: slug.trim(),
         description: description.trim() || null,
         thumbnailUrl: thumbnailUrl,
+        z_index: zIndex,
+        plumbing_config: plumbingConfig,
         templateCategoryId:
           selectedSubcategoryId === "none" ? templateCategoryId : null,
         templateSubcategoryId:
@@ -349,6 +355,44 @@ export default function CreateTemplateProductModal({
                 rows={3}
                 disabled={loading || thumbnailUploading}
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="zIndex">Z-Index (Layer Order)</Label>
+              <Input
+                id="zIndex"
+                type="number"
+                placeholder="e.g., 10, 20, 30"
+                value={zIndex}
+                onChange={(e) => setZIndex(Number(e.target.value))}
+                min="0"
+                disabled={loading || thumbnailUploading}
+              />
+              <p className="text-xs text-muted-foreground">
+                Higher values appear on top. Default is 10.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="plumbingConfig">Plumbing Configuration (Optional)</Label>
+              <Select
+                value={plumbingConfig || "none"}
+                onValueChange={(value) => setPlumbingConfig(value === "none" ? null : value)}
+                disabled={loading || thumbnailUploading}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select plumbing type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No Specific Plumbing</SelectItem>
+                  <SelectItem value="LEFT">Left Plumbing</SelectItem>
+                  <SelectItem value="RIGHT">Right Plumbing</SelectItem>
+                  <SelectItem value="BOTH">Both Plumbing Types</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Leave as "No Specific Plumbing" if product works with all plumbing types.
+              </p>
             </div>
           </div>
 

@@ -1,56 +1,159 @@
-// app/api/template-categories/[id]/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { createUnauthorizedResponse, getAuthenticatedUser } from "@/lib/auth";
 import prisma from "@/lib/prisma";
-import { TemplateCreateData } from "@/types/template";
+import {
+  createSuccessResponse,
+  createErrorResponse,
+} from "@/lib/api-response";
+import { handleApiError, NotFoundError, ConflictError } from "@/lib/error-handler";
+import { templateCategoryUpdateSchema } from "@/schemas/api-schemas";
+import { validateData, validateIdParam } from "@/lib/validation";
 
 type Params = Promise<{ id: string }>;
 
-// GET - Fetch a specific template category by ID
+/**
+ * GET /api/template-categories/[id]
+ * Fetch a specific template category by ID
+ */
 export async function GET(
   _request: NextRequest,
   segmentData: { params: Params }
 ) {
   try {
     const params = await segmentData.params;
-    const { id } = params;
+    const id = validateIdParam(params.id);
 
-    const template = await prisma.templateCategory.findUnique({
-      where: { id: parseInt(id) },
+    if (!id) {
+      return createErrorResponse("Invalid template category ID", 400);
+    }
+
+    const templateCategory = await prisma.templateCategory.findUnique({
+      where: { id },
       include: {
         templateSubcategories: {
           include: {
-            templateProducts: {
-              include: {
-                templateVariants: {
-                  include: {
-                    templateProduct: {
-                      select: { id: true, name: true, slug: true },
-                    },
-                  },
-                },
-              },
-            },
             _count: {
-              select: { templateProducts: true, subcategories: true },
+              select: { templateProducts: true },
+            },
+          },
+          orderBy: { name: "asc" },
+        },
+        templateProducts: {
+          include: {
+            _count: {
+              select: { templateVariants: true },
+            },
+          },
+          orderBy: { name: "asc" },
+        },
+        categories: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            showerTypeId: true,
+          },
+        },
+        _count: {
+          select: {
+            templateSubcategories: true,
+            templateProducts: true,
+            categories: true,
+          },
+        },
+      },
+    });
+
+    if (!templateCategory) {
+      throw new NotFoundError("Template category");
+    }
+
+    return createSuccessResponse(templateCategory);
+  } catch (error) {
+    return handleApiError(error, "GET /api/template-categories/[id]");
+  }
+}
+
+/**
+ * PATCH /api/template-categories/[id]
+ * Update a template category
+ * Protected endpoint - requires authentication
+ */
+export async function PATCH(
+  request: NextRequest,
+  segmentData: { params: Params }
+) {
+  try {
+    // Authentication check
+    const authUser = await getAuthenticatedUser(request);
+    if (!authUser) {
+      return createUnauthorizedResponse();
+    }
+
+    const params = await segmentData.params;
+    const id = validateIdParam(params.id);
+
+    if (!id) {
+      return createErrorResponse("Invalid template category ID", 400);
+    }
+
+    // Parse and validate request body
+    const body = await request.json();
+    const validation = validateData(templateCategoryUpdateSchema, body);
+
+    if (!validation.success) {
+      throw validation.errors;
+    }
+
+    const { name, slug, description, isActive } = validation.data;
+
+    // Check if template category exists
+    const existingTemplateCategory = await prisma.templateCategory.findUnique({
+      where: { id },
+    });
+
+    if (!existingTemplateCategory) {
+      throw new NotFoundError("Template category");
+    }
+
+    // Check for duplicate slug if being changed
+    if (slug && slug !== existingTemplateCategory.slug) {
+      const duplicate = await prisma.templateCategory.findFirst({
+        where: {
+          slug,
+          id: { not: id },
+        },
+      });
+
+      if (duplicate) {
+        throw new ConflictError(
+          "Template category with this slug already exists"
+        );
+      }
+    }
+
+    // Build update data
+    const updateData: any = {};
+    if (name !== undefined) updateData.name = name;
+    if (slug !== undefined) updateData.slug = slug;
+    if (description !== undefined) updateData.description = description;
+    if (isActive !== undefined) updateData.isActive = isActive;
+
+    const updatedTemplateCategory = await prisma.templateCategory.update({
+      where: { id },
+      data: updateData,
+      include: {
+        templateSubcategories: {
+          include: {
+            _count: {
+              select: { templateProducts: true },
             },
           },
         },
         templateProducts: {
           include: {
-            templateVariants: {
-              include: {
-                templateProduct: {
-                  select: { id: true, name: true, slug: true },
-                },
-              },
-            },
-          },
-        },
-        categories: {
-          include: {
-            showerType: {
-              select: { id: true, name: true, slug: true },
+            _count: {
+              select: { templateVariants: true },
             },
           },
         },
@@ -64,119 +167,40 @@ export async function GET(
       },
     });
 
-    if (!template) {
-      return NextResponse.json(
-        { success: false, message: "Template category not found" },
-        { status: 404 }
-      );
-    }
-
-    return NextResponse.json({
-      success: true,
-      data: template,
-    });
-  } catch (error) {
-    console.error("Error fetching template category:", error);
-    return NextResponse.json(
-      { success: false, message: "Failed to fetch template category" },
-      { status: 500 }
+    return createSuccessResponse(
+      updatedTemplateCategory,
+      "Template category updated successfully"
     );
+  } catch (error) {
+    return handleApiError(error, "PATCH /api/template-categories/[id]");
   }
 }
 
-// PUT - Update a template category
-export async function PUT(
-  request: NextRequest,
-  segmentData: { params: Params }
-) {
-  try {
-    const authUser = await getAuthenticatedUser(request);
-    if (!authUser) {
-      return createUnauthorizedResponse();
-    }
-
-    const params = await segmentData.params;
-    const { id } = params;
-    const body: TemplateCreateData = await request.json();
-    const { name, slug, description } = body;
-
-    // Check if template exists
-    const existingTemplate = await prisma.templateCategory.findUnique({
-      where: { id: parseInt(id) },
-    });
-
-    if (!existingTemplate) {
-      return NextResponse.json(
-        { success: false, message: "Template category not found" },
-        { status: 404 }
-      );
-    }
-
-    // Check if slug is being changed and if it's already taken
-    if (slug && slug !== existingTemplate.slug) {
-      const duplicate = await prisma.templateCategory.findFirst({
-        where: {
-          slug,
-          id: { not: parseInt(id) },
-        },
-      });
-
-      if (duplicate) {
-        return NextResponse.json(
-          { success: false, message: "Template with this slug already exists" },
-          { status: 409 }
-        );
-      }
-    }
-
-    const updatedTemplate = await prisma.templateCategory.update({
-      where: { id: parseInt(id) },
-      data: {
-        ...(name && { name }),
-        ...(slug && { slug }),
-        ...(description !== undefined && { description }),
-      },
-      include: {
-        _count: {
-          select: {
-            templateSubcategories: true,
-            templateProducts: true,
-            categories: true,
-          },
-        },
-      },
-    });
-
-    return NextResponse.json({
-      success: true,
-      data: updatedTemplate,
-      message: "Template category updated successfully",
-    });
-  } catch (error) {
-    console.error("Error updating template category:", error);
-    return NextResponse.json(
-      { success: false, message: "Failed to update template category" },
-      { status: 500 }
-    );
-  }
-}
-
-// DELETE - Delete a template category
+/**
+ * DELETE /api/template-categories/[id]
+ * Delete a template category
+ * Protected endpoint - requires authentication
+ */
 export async function DELETE(
   request: NextRequest,
   segmentData: { params: Params }
 ) {
   try {
+    // Authentication check
     const authUser = await getAuthenticatedUser(request);
     if (!authUser) {
       return createUnauthorizedResponse();
     }
 
     const params = await segmentData.params;
-    const { id } = params;
+    const id = validateIdParam(params.id);
 
-    const existingTemplate = await prisma.templateCategory.findUnique({
-      where: { id: parseInt(id) },
+    if (!id) {
+      return createErrorResponse("Invalid template category ID", 400);
+    }
+
+    const existingTemplateCategory = await prisma.templateCategory.findUnique({
+      where: { id },
       include: {
         _count: {
           select: {
@@ -188,42 +212,31 @@ export async function DELETE(
       },
     });
 
-    if (!existingTemplate) {
-      return NextResponse.json(
-        { success: false, message: "Template category not found" },
-        { status: 404 }
-      );
+    if (!existingTemplateCategory) {
+      throw new NotFoundError("Template category");
     }
 
-    // Prevent deletion if template has instances or sub-templates
+    // Prevent deletion if template category has subcategories, products, or is used by categories
     if (
-      existingTemplate._count.categories > 0 ||
-      existingTemplate._count.templateSubcategories > 0 ||
-      existingTemplate._count.templateProducts > 0
+      existingTemplateCategory._count.templateSubcategories > 0 ||
+      existingTemplateCategory._count.templateProducts > 0 ||
+      existingTemplateCategory._count.categories > 0
     ) {
-      return NextResponse.json(
-        {
-          success: false,
-          message:
-            "Cannot delete template that has instances, subcategories, or products. Please remove them first.",
-        },
-        { status: 400 }
+      return createErrorResponse(
+        "Cannot delete template category that has subcategories, products, or is being used by categories. Please remove them first.",
+        400
       );
     }
 
     await prisma.templateCategory.delete({
-      where: { id: parseInt(id) },
+      where: { id },
     });
 
-    return NextResponse.json({
-      success: true,
-      message: "Template category deleted successfully",
-    });
-  } catch (error) {
-    console.error("Error deleting template category:", error);
-    return NextResponse.json(
-      { success: false, message: "Failed to delete template category" },
-      { status: 500 }
+    return createSuccessResponse(
+      null,
+      "Template category deleted successfully"
     );
+  } catch (error) {
+    return handleApiError(error, "DELETE /api/template-categories/[id]");
   }
 }

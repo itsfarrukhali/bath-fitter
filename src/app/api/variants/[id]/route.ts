@@ -1,84 +1,125 @@
-// app/api/variants/[id]/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { createUnauthorizedResponse, getAuthenticatedUser } from "@/lib/auth";
 import prisma from "@/lib/prisma";
-import { deleteFromCloudinary } from "@/lib/cloudinary";
 import { PlumbingConfig } from "@prisma/client";
+import {
+  createSuccessResponse,
+  createErrorResponse,
+} from "@/lib/api-response";
+import { handleApiError, NotFoundError, ConflictError } from "@/lib/error-handler";
+import { productVariantUpdateSchema } from "@/schemas/api-schemas";
+import { validateData, validateIdParam } from "@/lib/validation";
 
 type Params = Promise<{ id: string }>;
 
+/**
+ * GET /api/variants/[id]
+ * Fetch a specific variant by ID
+ */
 export async function GET(
-  request: NextRequest,
+  _request: NextRequest,
   segmentData: { params: Params }
 ) {
   try {
     const params = await segmentData.params;
-    const { id } = params;
+    const id = validateIdParam(params.id);
+
+    if (!id) {
+      return createErrorResponse("Invalid variant ID", 400);
+    }
 
     const variant = await prisma.productVariant.findUnique({
-      where: { id: parseInt(id) },
+      where: { id },
       include: {
         product: {
-          include: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
             category: {
-              select: { id: true, name: true, showerType: true },
+              select: {
+                id: true,
+                name: true,
+                showerTypeId: true,
+                showerType: {
+                  select: {
+                    id: true,
+                    name: true,
+                    slug: true,
+                  },
+                },
+              },
             },
-            subcategory: {
-              select: { id: true, name: true },
-            },
+          },
+        },
+        templateVariant: {
+          select: {
+            id: true,
+            colorName: true,
+            colorCode: true,
           },
         },
       },
     });
 
     if (!variant) {
-      return NextResponse.json(
-        { success: false, message: "Variant not found" },
-        { status: 404 }
-      );
+      throw new NotFoundError("Product variant");
     }
 
-    return NextResponse.json({ success: true, data: variant });
+    return createSuccessResponse(variant);
   } catch (error) {
-    console.error("Error fetching variant:", error);
-    return NextResponse.json(
-      { success: false, message: "Failed to fetch variant" },
-      { status: 500 }
-    );
+    return handleApiError(error, "GET /api/variants/[id]");
   }
 }
 
-export async function PUT(
+/**
+ * PATCH /api/variants/[id]
+ * Update a product variant
+ * Protected endpoint - requires authentication
+ */
+export async function PATCH(
   request: NextRequest,
   segmentData: { params: Params }
 ) {
   try {
+    // Authentication check
     const authUser = await getAuthenticatedUser(request);
     if (!authUser) {
       return createUnauthorizedResponse();
     }
 
     const params = await segmentData.params;
-    const { id } = params;
-    const body = await request.json();
-    const { colorName, colorCode, imageUrl, publicId, plumbing_config } = body;
+    const id = validateIdParam(params.id);
 
+    if (!id) {
+      return createErrorResponse("Invalid variant ID", 400);
+    }
+
+    // Parse and validate request body
+    const body = await request.json();
+    const validation = validateData(productVariantUpdateSchema, body);
+
+    if (!validation.success) {
+      throw validation.errors;
+    }
+
+    const {
+      colorName,
+      colorCode,
+      imageUrl,
+      publicId,
+      productId,
+      plumbing_config,
+      templateVariantId,
+    } = validation.data;
+
+    // Check if variant exists
     const existingVariant = await prisma.productVariant.findUnique({
-      where: { id: parseInt(id) },
+      where: { id },
     });
 
     if (!existingVariant) {
-      return NextResponse.json(
-        { success: false, message: "Variant not found" },
-        { status: 404 }
-      );
-    }
-
-    if (!colorName?.trim()) {
-      return NextResponse.json(
-        { success: false, message: "Color name is required" },
-        { status: 400 }
-      );
+      throw new NotFoundError("Product variant");
     }
 
     // Validate plumbing_config if provided
@@ -86,132 +127,141 @@ export async function PUT(
       plumbing_config &&
       !Object.values(PlumbingConfig).includes(plumbing_config)
     ) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Invalid plumbing configuration",
-        },
-        { status: 400 }
-      );
+      throw new Error("Invalid plumbing configuration");
     }
 
-    // Check for duplicate color name
-    if (colorName.trim() !== existingVariant.colorName) {
-      const duplicateVariant = await prisma.productVariant.findFirst({
+    // Validate product if being updated
+    if (productId) {
+      const product = await prisma.product.findUnique({
+        where: { id: productId },
+      });
+
+      if (!product) {
+        throw new NotFoundError("Product");
+      }
+    }
+
+    // Validate template variant if being updated
+    if (templateVariantId) {
+      const templateVariant = await prisma.templateVariant.findUnique({
+        where: { id: templateVariantId },
+      });
+
+      if (!templateVariant) {
+        throw new NotFoundError("Template variant");
+      }
+    }
+
+    // Check for duplicate color name if being changed
+    if (colorName && colorName !== existingVariant.colorName) {
+      const targetProductId = productId || existingVariant.productId;
+      const duplicate = await prisma.productVariant.findFirst({
         where: {
-          colorName: colorName.trim(),
-          productId: existingVariant.productId,
-          id: { not: parseInt(id) },
+          colorName,
+          productId: targetProductId,
+          id: { not: id },
         },
       });
 
-      if (duplicateVariant) {
-        return NextResponse.json(
-          {
-            success: false,
-            message: "Variant with this color name already exists",
-          },
-          { status: 409 }
+      if (duplicate) {
+        throw new ConflictError(
+          "Variant with this color name already exists in this product"
         );
       }
     }
 
-    // Delete old image if changed
-    if (
-      imageUrl &&
-      imageUrl !== existingVariant.imageUrl &&
-      existingVariant.publicId
-    ) {
-      try {
-        await deleteFromCloudinary(existingVariant.publicId);
-      } catch (error) {
-        console.error("Failed to delete old image:", error);
-      }
-    }
+    // Build update data
+    const updateData: any = {};
+    if (colorName !== undefined) updateData.colorName = colorName;
+    if (colorCode !== undefined) updateData.colorCode = colorCode;
+    if (imageUrl !== undefined) updateData.imageUrl = imageUrl;
+    if (publicId !== undefined) updateData.publicId = publicId;
+    if (productId !== undefined) updateData.productId = productId;
+    if (plumbing_config !== undefined)
+      updateData.plumbing_config = plumbing_config;
+    if (templateVariantId !== undefined)
+      updateData.templateVariantId = templateVariantId;
 
     const updatedVariant = await prisma.productVariant.update({
-      where: { id: parseInt(id) },
-      data: {
-        colorName: colorName.trim(),
-        colorCode: colorCode?.trim() || null,
-        imageUrl: imageUrl || existingVariant.imageUrl,
-        publicId: publicId || existingVariant.publicId,
-        plumbing_config:
-          plumbing_config !== undefined
-            ? plumbing_config
-            : existingVariant.plumbing_config,
-      },
+      where: { id },
+      data: updateData,
       include: {
         product: {
-          include: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
             category: {
-              select: { id: true, name: true, showerType: true },
+              select: {
+                id: true,
+                name: true,
+                showerType: {
+                  select: {
+                    id: true,
+                    name: true,
+                    slug: true,
+                  },
+                },
+              },
             },
+          },
+        },
+        templateVariant: {
+          select: {
+            id: true,
+            colorName: true,
+            colorCode: true,
           },
         },
       },
     });
 
-    return NextResponse.json({
-      success: true,
-      data: updatedVariant,
-      message: "Variant updated successfully",
-    });
-  } catch (error) {
-    console.error("Error updating variant:", error);
-    return NextResponse.json(
-      { success: false, message: "Failed to update variant" },
-      { status: 500 }
+    return createSuccessResponse(
+      updatedVariant,
+      "Product variant updated successfully"
     );
+  } catch (error) {
+    return handleApiError(error, "PATCH /api/variants/[id]");
   }
 }
 
+/**
+ * DELETE /api/variants/[id]
+ * Delete a product variant
+ * Protected endpoint - requires authentication
+ */
 export async function DELETE(
   request: NextRequest,
   segmentData: { params: Params }
 ) {
   try {
+    // Authentication check
     const authUser = await getAuthenticatedUser(request);
     if (!authUser) {
       return createUnauthorizedResponse();
     }
 
     const params = await segmentData.params;
-    const { id } = params;
+    const id = validateIdParam(params.id);
 
-    const variant = await prisma.productVariant.findUnique({
-      where: { id: parseInt(id) },
-    });
-
-    if (!variant) {
-      return NextResponse.json(
-        { success: false, message: "Variant not found" },
-        { status: 404 }
-      );
+    if (!id) {
+      return createErrorResponse("Invalid variant ID", 400);
     }
 
-    // Delete image from Cloudinary
-    if (variant.publicId) {
-      try {
-        await deleteFromCloudinary(variant.publicId);
-      } catch (error) {
-        console.error("Failed to delete image:", error);
-      }
+    const existingVariant = await prisma.productVariant.findUnique({
+      where: { id },
+    });
+
+    if (!existingVariant) {
+      throw new NotFoundError("Product variant");
     }
 
     await prisma.productVariant.delete({
-      where: { id: parseInt(id) },
+      where: { id },
     });
 
-    return NextResponse.json({
-      success: true,
-      message: "Variant deleted successfully",
-    });
+    return createSuccessResponse(null, "Product variant deleted successfully");
   } catch (error) {
-    console.error("Error deleting variant:", error);
-    return NextResponse.json(
-      { success: false, message: "Failed to delete variant" },
-      { status: 500 }
-    );
+    return handleApiError(error, "DELETE /api/variants/[id]");
   }
 }

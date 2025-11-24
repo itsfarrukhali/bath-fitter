@@ -1,20 +1,43 @@
-// app/api/subcategories/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import prisma from "@/lib/prisma";
-import { SubcategoryCreateData } from "@/types/subcategory";
 import { createUnauthorizedResponse, getAuthenticatedUser } from "@/lib/auth";
+import prisma from "@/lib/prisma";
+import { Prisma, PlumbingConfig } from "@prisma/client";
+import {
+  createPaginatedResponse,
+  createSuccessResponse,
+  parsePaginationParams,
+} from "@/lib/api-response";
+import { handleApiError, NotFoundError, ConflictError } from "@/lib/error-handler";
+import { subcategoryCreateSchema } from "@/schemas/api-schemas";
+import { validateData, sanitizeSearchQuery } from "@/lib/validation";
 
-// GET - Fetch paginated subcategories
+/**
+ * GET /api/subcategories
+ * Fetch subcategories with optional filtering and search
+ * Supports filtering by category
+ */
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const page = parseInt(searchParams.get("page") || "1");
-    const limit = parseInt(searchParams.get("limit") || "10");
+    const { page, limit, skip } = parsePaginationParams(searchParams);
     const categoryId = searchParams.get("categoryId");
-    const skip = (page - 1) * limit;
+    const search = sanitizeSearchQuery(searchParams.get("search"));
 
-    const whereClause = categoryId ? { categoryId: parseInt(categoryId) } : {};
+    // Build where clause
+    const whereClause: Prisma.SubcategoryWhereInput = {};
 
+    if (categoryId) {
+      whereClause.categoryId = parseInt(categoryId);
+    }
+
+    if (search) {
+      whereClause.OR = [
+        { name: { contains: search, mode: "insensitive" } },
+        { slug: { contains: search, mode: "insensitive" } },
+      ];
+    }
+
+    // Fetch subcategories with relations
     const [subcategories, total] = await Promise.all([
       prisma.subcategory.findMany({
         where: whereClause,
@@ -22,6 +45,15 @@ export async function GET(request: NextRequest) {
         take: limit,
         include: {
           category: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+              showerTypeId: true,
+              z_index: true,
+            },
+          },
+          template: {
             select: {
               id: true,
               name: true,
@@ -37,9 +69,7 @@ export async function GET(request: NextRequest) {
             orderBy: { z_index: "asc" },
           },
           _count: {
-            select: {
-              products: true,
-            },
+            select: { products: true },
           },
         },
         orderBy: [{ z_index: "asc" }, { name: "asc" }],
@@ -47,93 +77,92 @@ export async function GET(request: NextRequest) {
       prisma.subcategory.count({ where: whereClause }),
     ]);
 
-    return NextResponse.json({
-      success: true,
-      data: subcategories,
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages: Math.ceil(total / limit),
-      },
-    });
-  } catch (error) {
-    console.error("Error fetching subcategories:", error);
-    return NextResponse.json(
-      { success: false, message: "Failed to fetch subcategories" },
-      { status: 500 }
+    return createPaginatedResponse(
+      subcategories,
+      { page, limit, total },
+      search ? `Found ${total} subcategory(ies)` : undefined
     );
+  } catch (error) {
+    return handleApiError(error, "GET /api/subcategories");
   }
 }
 
-// POST - Create a new subcategory (updated with z_index)
+/**
+ * POST /api/subcategories
+ * Create a new subcategory
+ * Protected endpoint - requires authentication
+ */
 export async function POST(request: NextRequest) {
   try {
+    // Authentication check
     const authUser = await getAuthenticatedUser(request);
     if (!authUser) {
       return createUnauthorizedResponse();
     }
 
-    const body: SubcategoryCreateData = await request.json();
-    const { name, slug, categoryId, z_index } = body;
+    // Parse and validate request body
+    const body = await request.json();
+    const validation = validateData(subcategoryCreateSchema, body);
 
-    // Validation
-    if (!name || !slug || !categoryId) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Name, slug, and categoryId are required",
-        },
-        { status: 400 }
-      );
+    if (!validation.success) {
+      throw validation.errors;
     }
+
+    const { name, slug, categoryId, templateId, z_index, plumbingConfig } =
+      validation.data;
 
     // Validate z_index range if provided
     if (z_index !== undefined && z_index !== null) {
       if (z_index < 0 || z_index > 100) {
-        return NextResponse.json(
-          {
-            success: false,
-            message: "Z-Index must be between 0 and 100",
-          },
-          { status: 400 }
-        );
+        throw new Error("Z-Index must be between 0 and 100");
       }
     }
 
-    // Check if category exists
+    // Validate category exists
     const category = await prisma.category.findUnique({
       where: { id: categoryId },
     });
 
     if (!category) {
-      return NextResponse.json(
-        { success: false, message: "Category not found" },
-        { status: 404 }
-      );
+      throw new NotFoundError("Category");
     }
 
-    // Check for existing subcategory with same slug within the same category
+    // Validate template if provided
+    if (templateId) {
+      const template = await prisma.templateSubcategory.findUnique({
+        where: { id: templateId },
+      });
+      if (!template) {
+        throw new NotFoundError("Template subcategory");
+      }
+    }
+
+    // Check for duplicate slug in same category
     const existingSubcategory = await prisma.subcategory.findFirst({
-      where: { slug, categoryId },
+      where: {
+        slug,
+        categoryId,
+      },
     });
 
     if (existingSubcategory) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Subcategory with this slug already exists in this category",
-        },
-        { status: 409 }
+      throw new ConflictError(
+        "Subcategory with this slug already exists in this category"
       );
     }
 
+    // Determine default z_index
+    const finalZIndex = z_index ?? category.z_index ?? 50;
+
+    // Create subcategory
     const subcategory = await prisma.subcategory.create({
       data: {
         name,
         slug,
         categoryId,
-        z_index: z_index ?? 50,
+        templateId: templateId || null,
+        z_index: finalZIndex,
+        plumbingConfig: plumbingConfig || PlumbingConfig.LEFT,
       },
       include: {
         category: {
@@ -141,37 +170,29 @@ export async function POST(request: NextRequest) {
             id: true,
             name: true,
             slug: true,
+            showerTypeId: true,
+            z_index: true,
           },
         },
-        products: {
-          include: {
-            _count: {
-              select: { variants: true },
-            },
+        template: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
           },
-          orderBy: { z_index: "asc" },
         },
         _count: {
-          select: {
-            products: true,
-          },
+          select: { products: true },
         },
       },
     });
 
-    return NextResponse.json(
-      {
-        success: true,
-        data: subcategory,
-        message: "Subcategory created successfully",
-      },
-      { status: 201 }
+    return createSuccessResponse(
+      subcategory,
+      "Subcategory created successfully",
+      201
     );
   } catch (error) {
-    console.error("Error creating subcategory:", error);
-    return NextResponse.json(
-      { success: false, message: "Failed to create subcategory" },
-      { status: 500 }
-    );
+    return handleApiError(error, "POST /api/subcategories");
   }
 }

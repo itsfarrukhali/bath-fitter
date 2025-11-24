@@ -38,6 +38,7 @@ export default function EditTemplateSubcategoryModal({
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [description, setDescription] = useState("");
+  const [zIndex, setZIndex] = useState(10);
   const [loading, setLoading] = useState(false);
   const [isSlugManual, setIsSlugManual] = useState(false);
 
@@ -46,6 +47,7 @@ export default function EditTemplateSubcategoryModal({
       setName(template.name);
       setSlug(template.slug);
       setDescription(template.description || "");
+      setZIndex((template as any).z_index || 10);
       setIsSlugManual(false);
     }
   }, [open, template]);
@@ -82,6 +84,7 @@ export default function EditTemplateSubcategoryModal({
           name: name.trim(),
           slug: slug.trim(),
           description: description.trim() || null,
+          z_index: zIndex,
         }
       );
 
@@ -156,6 +159,22 @@ export default function EditTemplateSubcategoryModal({
                 rows={3}
                 disabled={loading}
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="zIndex">Z-Index (Layer Order)</Label>
+              <Input
+                id="zIndex"
+                type="number"
+                placeholder="e.g., 10, 20, 30"
+                value={zIndex}
+                onChange={(e) => setZIndex(Number(e.target.value))}
+                min="0"
+                disabled={loading}
+              />
+              <p className="text-xs text-muted-foreground">
+                Higher values appear on top. Default is 10.
+              </p>
             </div>
           </div>
 
