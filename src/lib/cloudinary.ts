@@ -3,6 +3,7 @@ import {
   v2 as cloudinary,
   UploadApiResponse,
   UploadApiErrorResponse,
+  UploadApiOptions,
 } from "cloudinary";
 import { CloudinaryUploadResponse } from "@/types/cloudinary";
 import { PlumbingConfig } from "@prisma/client";
@@ -29,7 +30,7 @@ export const uploadToCloudinary = async (
     const buffer = Buffer.from(arrayBuffer);
 
     return new Promise((resolve, reject) => {
-      const uploadOptions: any = {
+      const uploadOptions: UploadApiOptions = {
         folder: `bath-fitter/${folder}`,
         resource_type: "image",
         quality: "auto",

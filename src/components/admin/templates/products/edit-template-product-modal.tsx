@@ -31,6 +31,8 @@ interface TemplateProduct {
   name: string;
   slug: string;
   description?: string;
+  z_index?: number;
+  plumbing_config?: string | null;
   templateCategoryId?: number;
   templateSubcategoryId?: number;
 }
@@ -58,8 +60,8 @@ export default function EditTemplateProductModal({
       setName(templateProduct.name);
       setSlug(templateProduct.slug);
       setDescription(templateProduct.description || "");
-      setZIndex((templateProduct as any).z_index || 10);
-      setPlumbingConfig((templateProduct as any).plumbing_config || null);
+      setZIndex(templateProduct.z_index || 10);
+      setPlumbingConfig(templateProduct.plumbing_config || null);
       setIsSlugManual(false);
     }
   }, [open, templateProduct]);
@@ -211,7 +213,7 @@ export default function EditTemplateProductModal({
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">
-                Leave as "No Specific Plumbing" if product works with all plumbing types.
+                Leave as &apos;No Specific Plumbing&apos; if product works with all plumbing types.
               </p>
             </div>
           </div>

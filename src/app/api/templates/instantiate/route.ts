@@ -25,7 +25,7 @@ const instantiateSchema = z.object({
   }),
 });
 
-type InstantiateRequest = z.infer<typeof instantiateSchema>;
+
 
 interface InstantiationResult {
   showerTypeId: number;

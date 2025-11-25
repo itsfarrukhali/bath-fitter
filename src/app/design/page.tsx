@@ -161,7 +161,7 @@ export default function DesignPage() {
     setState((prev) => ({ ...prev, selectedSubcategory: subcategory }));
   };
 
-  const handleProductSelect = (product: Product, variant?: ProductVariant) => {
+  const handleProductSelect = (product: Product) => {
     if (!product) return;
 
     // Use enhanced plumbing-aware variant selection
@@ -440,14 +440,16 @@ export default function DesignPage() {
                 </div>
               </div>
               <div className="flex items-center gap-1 shrink-0 ml-2">
-                <SaveDesignDialog state={state} />
-                <LoadDesignDialog onLoad={handleLoadDesign} />
+                <SaveDesignDialog state={state} data-testid="save-design-button" />
+                <LoadDesignDialog onLoad={handleLoadDesign} data-testid="load-design-button" />
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={handlePrint}
                   className="h-9 w-9 p-0 cursor-pointer"
                   title="Print"
+                  data-testid="print-button"
+                  aria-label="Print design"
                 >
                   <Printer className="h-4 w-4" />
                 </Button>
@@ -567,13 +569,15 @@ export default function DesignPage() {
                 <span>{isMobile ? "Mobile" : "Desktop"} View</span>
               </Button>
               <div className="flex items-center gap-2">
-                <SaveDesignDialog state={state} />
-                <LoadDesignDialog onLoad={handleLoadDesign} />
+                <SaveDesignDialog state={state} data-testid="save-design-button-desktop" />
+                <LoadDesignDialog onLoad={handleLoadDesign} data-testid="load-design-button-desktop" />
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={handlePrint}
                   className="hover:bg-muted/80 transition-colors cursor-pointer"
+                  data-testid="print-button-desktop"
+                  aria-label="Print design"
                 >
                   <Printer className="h-4 w-4 sm:mr-2" />
                   <span className="hidden sm:inline">Print</span>

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, } from "next/server";
 import prisma from "@/lib/prisma";
 import { createUnauthorizedResponse, getAuthenticatedUser } from "@/lib/auth";
 import {
@@ -7,8 +7,8 @@ import {
   parsePaginationParams,
   addCacheHeaders,
 } from "@/lib/api-response";
-import { handleApiError, NotFoundError, ConflictError } from "@/lib/error-handler";
-import { projectTypeCreateSchema, projectTypeUpdateSchema } from "@/schemas/api-schemas";
+import { handleApiError, ConflictError } from "@/lib/error-handler";
+import { projectTypeCreateSchema } from "@/schemas/api-schemas";
 import { validateData, sanitizeSearchQuery } from "@/lib/validation";
 
 /**

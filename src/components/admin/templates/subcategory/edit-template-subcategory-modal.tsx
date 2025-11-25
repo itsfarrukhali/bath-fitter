@@ -23,6 +23,7 @@ interface TemplateSubcategory {
   name: string;
   slug: string;
   description?: string;
+  z_index?: number;
 }
 
 interface Props {
@@ -47,7 +48,7 @@ export default function EditTemplateSubcategoryModal({
       setName(template.name);
       setSlug(template.slug);
       setDescription(template.description || "");
-      setZIndex((template as any).z_index || 10);
+      setZIndex(template.z_index || 10);
       setIsSlugManual(false);
     }
   }, [open, template]);

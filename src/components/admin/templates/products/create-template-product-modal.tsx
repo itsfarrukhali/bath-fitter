@@ -391,7 +391,7 @@ export default function CreateTemplateProductModal({
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">
-                Leave as "No Specific Plumbing" if product works with all plumbing types.
+                Leave as &apos;No Specific Plumbing&apos; if product works with all plumbing types.
               </p>
             </div>
           </div>

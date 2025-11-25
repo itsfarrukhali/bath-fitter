@@ -80,11 +80,13 @@
 - [x] Implement Load Design from Backend
 - [x] Create Auth Middleware (NextAuth protection)
 - [x] Protect Admin Routes
-- [x] Add Z-Index to Template Subcategory Forms
-- [x] Add Plumbing Config to Template Variant Forms
-- [ ] Add Z-Index to Template Product Forms (In Progress)
-- [ ] Add Plumbing Config to Template Product Forms (In Progress)
-- [ ] Add data-testid attributes for E2E tests
+- [x] Add Z-Index to Template Subcategory Forms (Create + Edit)
+- [x] Add Plumbing Config to Template Variant Forms (Already had)
+- [x] Add Z-Index to Template Product Forms (Create + Edit)
+- [x] Add Plumbing Config to Template Product Forms (Create + Edit)
+- [x] Verify Regular Forms (All already have z_index and plumbing_config)
+- [x] Push all changes to GitHub
+- [ ] Add data-testid attributes for E2E tests (Option 2 - Next)
 - [ ] Accessibility (ARIA labels, keyboard navigation)
 - [ ] Performance optimization
 

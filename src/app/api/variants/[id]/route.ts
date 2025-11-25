@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { createUnauthorizedResponse, getAuthenticatedUser } from "@/lib/auth";
 import prisma from "@/lib/prisma";
-import { PlumbingConfig } from "@prisma/client";
+import { PlumbingConfig, Prisma } from "@prisma/client";
 import {
   createSuccessResponse,
   createErrorResponse,
@@ -171,13 +171,13 @@ export async function PATCH(
     }
 
     // Build update data
-    const updateData: any = {};
+    const updateData: Prisma.ProductVariantUncheckedUpdateInput = {};
     if (colorName !== undefined) updateData.colorName = colorName;
     if (colorCode !== undefined) updateData.colorCode = colorCode;
     if (imageUrl !== undefined) updateData.imageUrl = imageUrl;
     if (publicId !== undefined) updateData.publicId = publicId;
     if (productId !== undefined) updateData.productId = productId;
-    if (plumbing_config !== undefined)
+    if (plumbing_config !== undefined && plumbing_config !== null)
       updateData.plumbing_config = plumbing_config;
     if (templateVariantId !== undefined)
       updateData.templateVariantId = templateVariantId;

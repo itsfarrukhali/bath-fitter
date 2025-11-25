@@ -5,6 +5,7 @@ import { ConfiguratorState } from "@/types/design";
 import { Button } from "@/components/ui/button";
 import { X, Printer } from "lucide-react";
 import { useEffect, useState } from "react";
+import Image from "next/image";
 
 interface PrintViewProps {
   state: ConfiguratorState;
@@ -100,11 +101,12 @@ export default function PrintView({ state, onClose }: PrintViewProps) {
           >
             <div className="relative w-full h-full">
               {/* Base Image */}
-              <img
+              <Image
                 src={state.baseImage}
                 alt="Shower Base"
-                className="w-full h-full object-contain"
-                style={{ maxWidth: "100%", height: "auto" }}
+                fill
+                className="object-contain"
+                sizes="(max-width: 768px) 100vw, 300px"
               />
 
               {/* Product Overlays */}
@@ -114,14 +116,16 @@ export default function PrintView({ state, onClose }: PrintViewProps) {
                     selectedProduct.variant?.imageUrl ||
                     selectedProduct.product?.imageUrl;
                   return imageUrl ? (
-                    <img
+                    <Image
                       key={key}
                       src={imageUrl}
                       alt={selectedProduct.product.name}
-                      className="absolute top-0 left-0 w-full h-full object-contain p-4"
+                      fill
+                      className="object-contain p-4"
                       style={{
                         zIndex: selectedProduct.product?.z_index || 10,
                       }}
+                      sizes="(max-width: 768px) 100vw, 300px"
                     />
                   ) : null;
                 }
@@ -151,15 +155,12 @@ export default function PrintView({ state, onClose }: PrintViewProps) {
 
                     {/* Thumbnail */}
                     {selectedProduct.product?.thumbnailUrl && (
-                      <img
+                      <Image
                         src={selectedProduct.product.thumbnailUrl}
                         alt={selectedProduct.product.name}
-                        className="flex-shrink-0 rounded border border-gray-300"
-                        style={{
-                          width: "40px",
-                          height: "40px",
-                          objectFit: "cover",
-                        }}
+                        width={40}
+                        height={40}
+                        className="flex-shrink-0 rounded border border-gray-300 object-cover"
                       />
                     )}
 

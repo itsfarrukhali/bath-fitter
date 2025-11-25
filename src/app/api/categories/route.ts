@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { PlumbingConfig, Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { getAuthenticatedUser, createUnauthorizedResponse } from "@/lib/auth";
@@ -209,7 +209,12 @@ export async function GET(request: NextRequest) {
             category.products && category.products.length > 0;
 
           const hasSubcategoryProducts = category.subcategories?.some(
-            (sub: { products?: unknown[] }) => sub.products && sub.products.length > 0
+            (sub: unknown) =>
+              typeof sub === "object" &&
+              sub !== null &&
+              "products" in sub &&
+              Array.isArray((sub as { products: unknown[] }).products) &&
+              (sub as { products: unknown[] }).products.length > 0
           );
 
           return hasDirectProducts || hasSubcategoryProducts;

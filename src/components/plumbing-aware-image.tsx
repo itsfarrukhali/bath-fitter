@@ -2,10 +2,12 @@
 "use client";
 
 import { transformCloudinaryUrl } from "@/utils/cloudinaryTransform";
+import { useState, useEffect } from "react";
 import Image, { ImageProps } from "next/image";
 
 interface PlumbingAwareImageProps extends Omit<ImageProps, "src"> {
   src: string;
+  alt: string;
   plumbingConfig?: string;
   variantPlumbingConfig?: string;
   enableFlip?: boolean;
@@ -23,11 +25,17 @@ export function PlumbingAwareImage({
     ? transformCloudinaryUrl(src, plumbingConfig, variantPlumbingConfig)
     : src;
 
+  const [imgSrc, setImgSrc] = useState(imageUrl || "/images/placeholder.png");
+
+  useEffect(() => {
+    setImgSrc(imageUrl || "/images/placeholder.png");
+  }, [imageUrl]);
+
   return (
     <Image
-      src={imageUrl || "/images/placeholder.png"}
-      onError={(e) => {
-        e.currentTarget.src = "/images/placeholder.png";
+      src={imgSrc}
+      onError={() => {
+        setImgSrc("/images/placeholder.png");
       }}
       {...props}
     />

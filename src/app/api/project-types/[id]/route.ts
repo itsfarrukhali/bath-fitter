@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import prisma from "@/lib/prisma";
 import { createUnauthorizedResponse, getAuthenticatedUser } from "@/lib/auth";
 import { createSuccessResponse } from "@/lib/api-response";
@@ -6,15 +6,18 @@ import { handleApiError, NotFoundError, ConflictError } from "@/lib/error-handle
 import { projectTypeUpdateSchema } from "@/schemas/api-schemas";
 import { validateData, validateIdParam } from "@/lib/validation";
 
+type Params = Promise<{ id: string }>;
+
 /**
  * GET /api/project-types/[id]
  * Fetch a single project type by ID
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  segmentData: { params: Params }
 ) {
   try {
+    const params = await segmentData.params;
     const id = validateIdParam(params.id);
     if (!id) {
       throw new Error("Invalid ID format");
@@ -48,7 +51,7 @@ export async function GET(
 
     return createSuccessResponse(projectType);
   } catch (error) {
-    return handleApiError(error, `GET /api/project-types/${params.id}`);
+    return handleApiError(error, `GET /api/project-types/[id]`);
   }
 }
 
@@ -59,7 +62,7 @@ export async function GET(
  */
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  segmentData: { params: Params }
 ) {
   try {
     // Authentication check
@@ -68,6 +71,7 @@ export async function PATCH(
       return createUnauthorizedResponse();
     }
 
+    const params = await segmentData.params;
     const id = validateIdParam(params.id);
     if (!id) {
       throw new Error("Invalid ID format");
@@ -124,7 +128,7 @@ export async function PATCH(
       "Project type updated successfully"
     );
   } catch (error) {
-    return handleApiError(error, `PATCH /api/project-types/${params.id}`);
+    return handleApiError(error, `PATCH /api/project-types/[id]`);
   }
 }
 
@@ -135,7 +139,7 @@ export async function PATCH(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  segmentData: { params: Params }
 ) {
   try {
     // Authentication check
@@ -144,6 +148,7 @@ export async function DELETE(
       return createUnauthorizedResponse();
     }
 
+    const params = await segmentData.params;
     const id = validateIdParam(params.id);
     if (!id) {
       throw new Error("Invalid ID format");
@@ -182,6 +187,6 @@ export async function DELETE(
       "Project type deleted successfully"
     );
   } catch (error) {
-    return handleApiError(error, `DELETE /api/project-types/${params.id}`);
+    return handleApiError(error, `DELETE /api/project-types/[id]`);
   }
 }

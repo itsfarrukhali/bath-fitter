@@ -1,6 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { createUnauthorizedResponse, getAuthenticatedUser } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import {
   createSuccessResponse,
   createErrorResponse,
@@ -169,13 +170,13 @@ export async function PATCH(
     }
 
     // Build update data
-    const updateData: any = {};
+    const updateData: Prisma.SubcategoryUncheckedUpdateInput = {};
     if (name !== undefined) updateData.name = name;
     if (slug !== undefined) updateData.slug = slug;
     if (categoryId !== undefined) updateData.categoryId = categoryId;
     if (templateId !== undefined) updateData.templateId = templateId;
     if (z_index !== undefined) updateData.z_index = z_index;
-    if (plumbingConfig !== undefined) updateData.plumbingConfig = plumbingConfig;
+    if (plumbingConfig !== undefined && plumbingConfig !== null) updateData.plumbingConfig = plumbingConfig;
 
     const updatedSubcategory = await prisma.subcategory.update({
       where: { id },

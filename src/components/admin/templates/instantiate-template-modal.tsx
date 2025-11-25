@@ -155,9 +155,17 @@ export default function InstantiateTemplateModal({
     }
   };
 
+interface InstantiationResult {
+  showerTypeId: number;
+  plumbingConfig: PlumbingConfig;
+  success: boolean;
+  message?: string;
+  categoryId?: number;
+}
+
   const processInstantiation = async (
     taskId: string,
-    results: any[],
+    results: InstantiationResult[],
     toastId: string | number
   ) => {
     let completed = 0;
@@ -167,7 +175,6 @@ export default function InstantiateTemplateModal({
     results.forEach((result, index) => {
       setTimeout(() => {
         completed++;
-        const success = result.success;
 
         toast.loading(
           <InstantiationProgressToast
@@ -473,7 +480,6 @@ export default function InstantiateTemplateModal({
 
 // Progress Toast Component
 function InstantiationProgressToast({
-  taskId,
   templateName,
   progress,
   total,

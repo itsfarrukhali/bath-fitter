@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { createUnauthorizedResponse, getAuthenticatedUser } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import {
@@ -96,7 +96,7 @@ export async function PATCH(
     }
 
     // Build update data
-    const updateData: any = {};
+    const updateData: Prisma.UserDesignUncheckedUpdateInput = {};
     if (designData !== undefined)
       updateData.designData = designData as Prisma.InputJsonValue;
     if (userFullName !== undefined) updateData.userFullName = userFullName;

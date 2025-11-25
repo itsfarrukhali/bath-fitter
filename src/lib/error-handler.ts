@@ -124,7 +124,7 @@ export function handleApiError(
   // Handle Prisma errors (both real instances and mock objects with code property)
   if (
     error instanceof Prisma.PrismaClientKnownRequestError ||
-    (typeof error === "object" && error !== null && "code" in error && typeof (error as any).code === "string" && (error as any).code.startsWith("P"))
+    (typeof error === "object" && error !== null && "code" in error && typeof (error as { code: unknown }).code === "string" && ((error as { code: string }).code).startsWith("P"))
   ) {
     const { message, status } = handlePrismaError(error as Prisma.PrismaClientKnownRequestError);
     return createErrorResponse(message, status);

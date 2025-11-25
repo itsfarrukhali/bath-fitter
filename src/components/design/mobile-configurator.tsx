@@ -463,7 +463,6 @@ function SelectedProductItem({
   onRemoveProduct,
   onVariantSelect,
   plumbingConfig,
-  showerTypeId,
 }: {
   productKey: string;
   selectedProduct: SelectedProduct;
@@ -564,7 +563,6 @@ function ProductCard({
   onSelect,
   onVariantSelect,
   plumbingConfig,
-  showerTypeId,
 }: {
   product: Product;
   isSelected: boolean;
