@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
       throw validation.errors;
     }
 
-    const { name, slug } = validation.data;
+    const { name, slug, imageUrl } = validation.data;
 
     // Check for existing project type with same slug
     const existingProjectType = await prisma.projectType.findUnique({
@@ -100,6 +100,7 @@ export async function POST(request: NextRequest) {
       data: {
         name,
         slug,
+        imageUrl: imageUrl || null,
       },
       include: {
         _count: {

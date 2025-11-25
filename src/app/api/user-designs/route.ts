@@ -73,7 +73,9 @@ export async function GET(request: NextRequest) {
               id: true,
               name: true,
               slug: true,
-              baseImage: true,
+              imageUrl: true,
+              baseImageLeft: true,
+              baseImageRight: true,
               projectType: {
                 select: {
                   id: true,
@@ -166,7 +168,9 @@ export async function POST(request: NextRequest) {
             id: true,
             name: true,
             slug: true,
-            baseImage: true,
+            imageUrl: true,
+            baseImageLeft: true,
+            baseImageRight: true,
             projectType: {
               select: {
                 id: true,

@@ -112,7 +112,7 @@ export async function PATCH(
       throw validation.errors;
     }
 
-    const { name, slug, projectTypeId, baseImage } = validation.data;
+    const { name, slug, projectTypeId, imageUrl, baseImageLeft, baseImageRight } = validation.data;
 
     // Check if shower type exists
     const existingShowerType = await prisma.showerType.findUnique({
@@ -153,7 +153,9 @@ export async function PATCH(
     if (name !== undefined) updateData.name = name;
     if (slug !== undefined) updateData.slug = slug;
     if (projectTypeId !== undefined) updateData.projectTypeId = projectTypeId;
-    if (baseImage !== undefined) updateData.baseImage = baseImage;
+    if (imageUrl !== undefined) updateData.imageUrl = imageUrl;
+    if (baseImageLeft !== undefined) updateData.baseImageLeft = baseImageLeft;
+    if (baseImageRight !== undefined) updateData.baseImageRight = baseImageRight;
 
     const updatedShowerType = await prisma.showerType.update({
       where: { id },

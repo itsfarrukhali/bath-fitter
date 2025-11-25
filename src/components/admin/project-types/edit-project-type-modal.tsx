@@ -1,7 +1,7 @@
 // src/components/admin/project-types/edit-project-type-modal.tsx
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import axios, { AxiosError } from "axios";
 import { Loader2, Pencil } from "lucide-react";
 import {
@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import type { ProjectType } from "@/types/project-type";
+import ImageUpload from "@/components/admin/shared/image-upload";
 
 interface Props {
   projectType: ProjectType;
@@ -30,8 +31,19 @@ export default function EditProjectTypeModal({
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(projectType.name);
   const [slug, setSlug] = useState(projectType.slug);
+  const [imageUrl, setImageUrl] = useState<string | null>(projectType.imageUrl || null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Reset form when modal opens or projectType changes
+  useEffect(() => {
+    if (open) {
+      setName(projectType.name);
+      setSlug(projectType.slug);
+      setImageUrl(projectType.imageUrl || null);
+      setError(null);
+    }
+  }, [open, projectType]);
 
   const handleUpdate = async () => {
     if (!name.trim()) return setError("Name is required");
@@ -41,9 +53,10 @@ export default function EditProjectTypeModal({
     setError(null);
 
     try {
-      const { data } = await axios.put(`/api/project-types/${projectType.id}`, {
+      const { data } = await axios.patch(`/api/project-types/${projectType.id}`, {
         name,
         slug,
+        imageUrl,
       });
 
       if (!data.success) throw new Error(data.message);
@@ -89,7 +102,7 @@ export default function EditProjectTypeModal({
         </Button>
       </DialogTrigger>
 
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Edit Project Type</DialogTitle>
         </DialogHeader>
@@ -124,6 +137,14 @@ export default function EditProjectTypeModal({
               hyphens.
             </p>
           </div>
+
+          <ImageUpload
+            label="Project Type Image"
+            value={imageUrl}
+            onChange={setImageUrl}
+            folder="project-types"
+            helpText="Upload or replace the project type image"
+          />
         </div>
 
         <DialogFooter>

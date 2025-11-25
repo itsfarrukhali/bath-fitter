@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import type { ProjectType } from "@/types/project-type";
+import ImageUpload from "@/components/admin/shared/image-upload";
 
 interface Props {
   onProjectTypeCreated: (projectType: ProjectType) => void;
@@ -28,6 +29,7 @@ export default function CreateProjectTypeModal({
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -42,6 +44,7 @@ export default function CreateProjectTypeModal({
       const { data } = await axios.post("/api/project-types", {
         name,
         slug,
+        imageUrl,
       });
 
       if (!data.success) throw new Error(data.message);
@@ -50,6 +53,7 @@ export default function CreateProjectTypeModal({
       onProjectTypeCreated(data.data);
       setName("");
       setSlug("");
+      setImageUrl(null);
       setOpen(false);
     } catch (err: unknown) {
       let errorMsg = "Failed to create project type";
@@ -90,7 +94,7 @@ export default function CreateProjectTypeModal({
         </Button>
       </DialogTrigger>
 
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Create Project Type</DialogTitle>
         </DialogHeader>
@@ -125,6 +129,14 @@ export default function CreateProjectTypeModal({
               hyphens.
             </p>
           </div>
+
+          <ImageUpload
+            label="Project Type Image"
+            value={imageUrl}
+            onChange={setImageUrl}
+            folder="project-types"
+            helpText="Upload an image to represent this project type"
+          />
         </div>
 
         <DialogFooter>

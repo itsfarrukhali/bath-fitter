@@ -85,7 +85,7 @@ export async function PATCH(
       throw validation.errors;
     }
 
-    const { name, slug } = validation.data;
+    const { name, slug, imageUrl } = validation.data;
 
     // Check if project type exists
     const existingProjectType = await prisma.projectType.findUnique({
@@ -113,6 +113,7 @@ export async function PATCH(
       data: {
         ...(name && { name }),
         ...(slug && { slug }),
+        ...(imageUrl !== undefined && { imageUrl }),
       },
       include: {
         _count: {

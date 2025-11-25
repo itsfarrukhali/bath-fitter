@@ -115,7 +115,7 @@ export async function POST(request: NextRequest) {
       throw validation.errors;
     }
 
-    const { name, slug, projectTypeId, baseImage } = validation.data;
+    const { name, slug, projectTypeId, imageUrl, baseImageLeft, baseImageRight } = validation.data;
 
     // Check if project type exists
     const projectType = await prisma.projectType.findUnique({
@@ -141,7 +141,9 @@ export async function POST(request: NextRequest) {
         name,
         slug,
         projectTypeId,
-        baseImage: baseImage || null,
+        imageUrl: imageUrl || null,
+        baseImageLeft: baseImageLeft || null,
+        baseImageRight: baseImageRight || null,
       },
       include: {
         projectType: {

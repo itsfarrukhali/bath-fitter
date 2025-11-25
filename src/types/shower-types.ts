@@ -13,7 +13,9 @@ export interface ShowerType {
   slug: string;
   projectTypeId: number;
   projectType: ProjectType;
-  baseImage?: string;
+  imageUrl?: string | null;
+  baseImageLeft?: string | null;
+  baseImageRight?: string | null;
   _count: {
     categories: number;
     UserDesign: number;
@@ -25,14 +27,18 @@ export interface ShowerTypeCreateData {
   name: string;
   slug: string;
   projectTypeId: number;
-  baseImage?: string;
+  imageUrl?: string | null;
+  baseImageLeft?: string | null;
+  baseImageRight?: string | null;
 }
 
 export interface ShowerTypeUpdateData {
   name?: string;
   slug?: string;
   projectTypeId?: number;
-  baseImage?: string;
+  imageUrl?: string | null;
+  baseImageLeft?: string | null;
+  baseImageRight?: string | null;
 }
 
 export interface ShowerTypeResponse {

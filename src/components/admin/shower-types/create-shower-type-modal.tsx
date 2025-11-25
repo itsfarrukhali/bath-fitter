@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import type { ShowerType, ProjectType } from "@/types/shower-types";
+import ImageUpload from "@/components/admin/shared/image-upload";
 
 interface Props {
   onShowerTypeCreated: (showerType: ShowerType) => void;
@@ -34,7 +35,9 @@ export default function CreateShowerTypeModal({ onShowerTypeCreated }: Props) {
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [projectTypeId, setProjectTypeId] = useState<string>("");
-  const [baseImage, setBaseImage] = useState("");
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [baseImageLeft, setBaseImageLeft] = useState<string | null>(null);
+  const [baseImageRight, setBaseImageRight] = useState<string | null>(null);
   const [projectTypes, setProjectTypes] = useState<ProjectType[]>([]);
   const [loading, setLoading] = useState(false);
   const [fetchingProjectTypes, setFetchingProjectTypes] = useState(false);
@@ -82,7 +85,9 @@ export default function CreateShowerTypeModal({ onShowerTypeCreated }: Props) {
         name,
         slug,
         projectTypeId: parseInt(projectTypeId),
-        baseImage,
+        imageUrl,
+        baseImageLeft,
+        baseImageRight,
       });
 
       if (!data.success) throw new Error(data.message);
@@ -92,7 +97,9 @@ export default function CreateShowerTypeModal({ onShowerTypeCreated }: Props) {
       setName("");
       setSlug("");
       setProjectTypeId("");
-      setBaseImage("");
+      setImageUrl(null);
+      setBaseImageLeft(null);
+      setBaseImageRight(null);
       setOpen(false);
     } catch (err: unknown) {
       if (err instanceof AxiosError) {
@@ -131,75 +138,111 @@ export default function CreateShowerTypeModal({ onShowerTypeCreated }: Props) {
         </Button>
       </DialogTrigger>
 
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Create Shower Type</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4 py-4">
+        <div className="space-y-6 py-4">
           {error && (
             <div className="text-sm text-red-500 bg-red-50 border border-red-200 p-2 rounded">
               {error}
             </div>
           )}
 
-          <div className="space-y-2">
-            <Label htmlFor="name">Name *</Label>
-            <Input
-              id="name"
-              placeholder="Enter shower type name"
-              value={name}
-              onChange={(e) => handleNameChange(e.target.value)}
-            />
-          </div>
+          {/* Basic Information */}
+          <div className="space-y-4">
+            <h3 className="text-sm font-semibold">Basic Information</h3>
+            
+            <div className="space-y-2">
+              <Label htmlFor="name">Name *</Label>
+              <Input
+                id="name"
+                placeholder="Enter shower type name"
+                value={name}
+                onChange={(e) => handleNameChange(e.target.value)}
+              />
+            </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="slug">Slug *</Label>
-            <Input
-              id="slug"
-              placeholder="Enter slug"
-              value={slug}
-              onChange={(e) => setSlug(e.target.value)}
-            />
-            <p className="text-xs text-muted-foreground">
-              This will be used in URLs. Use lowercase letters, numbers, and
-              hyphens.
-            </p>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="projectType">Project Type *</Label>
-            <Select
-              value={projectTypeId}
-              onValueChange={setProjectTypeId}
-              disabled={fetchingProjectTypes}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select project type" />
-              </SelectTrigger>
-              <SelectContent>
-                {projectTypes.map((type) => (
-                  <SelectItem key={type.id} value={type.id.toString()}>
-                    {type.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {fetchingProjectTypes && (
+            <div className="space-y-2">
+              <Label htmlFor="slug">Slug *</Label>
+              <Input
+                id="slug"
+                placeholder="Enter slug"
+                value={slug}
+                onChange={(e) => setSlug(e.target.value)}
+              />
               <p className="text-xs text-muted-foreground">
-                Loading project types...
+                This will be used in URLs. Use lowercase letters, numbers, and
+                hyphens.
               </p>
-            )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="projectType">Project Type *</Label>
+              <Select
+                value={projectTypeId}
+                onValueChange={setProjectTypeId}
+                disabled={fetchingProjectTypes}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select project type" />
+                </SelectTrigger>
+                <SelectContent>
+                  {projectTypes.map((type) => (
+                    <SelectItem key={type.id} value={type.id.toString()}>
+                      {type.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {fetchingProjectTypes && (
+                <p className="text-xs text-muted-foreground">
+                  Loading project types...
+                </p>
+              )}
+            </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="baseImage">Base Image URL (Optional)</Label>
-            <Input
-              id="baseImage"
-              placeholder="Enter base image URL"
-              value={baseImage}
-              onChange={(e) => setBaseImage(e.target.value)}
+          <div className="border-t pt-4">
+            <h3 className="text-sm font-semibold mb-4">Shower Type Display Image</h3>
+            <ImageUpload
+              label="Shower Type Image"
+              value={imageUrl}
+              onChange={setImageUrl}
+              folder="shower-types"
+              helpText="Upload an image to represent this shower type in listings"
             />
+          </div>
+
+          {/* Base Images for Plumbing Configurations */}
+          <div className="border-t pt-4">
+            <h3 className="text-sm font-semibold mb-2">Base Images for Design Canvas</h3>
+            <p className="text-xs text-muted-foreground mb-4">
+              Upload base images for different plumbing configurations. These will be used as the background in the design canvas.
+            </p>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <ImageUpload
+                label="Left Plumbing Base Image"
+                value={baseImageLeft}
+                onChange={setBaseImageLeft}
+                folder="shower-types/base-images"
+                helpText="Base image for LEFT plumbing configuration"
+              />
+
+              <ImageUpload
+                label="Right Plumbing Base Image"
+                value={baseImageRight}
+                onChange={setBaseImageRight}
+                folder="shower-types/base-images"
+                helpText="Base image for RIGHT plumbing configuration"
+              />
+            </div>
+
+            <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded text-xs text-blue-900">
+              <strong>Tip:</strong> Upload at least one base image. If you only upload one, it will be used for both plumbing configurations.
+            </div>
           </div>
         </div>
 

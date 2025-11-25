@@ -73,6 +73,18 @@ export default function DesignPage() {
 
       const configuration = JSON.parse(config);
 
+      // Fetch shower type data to get base images
+      const showerTypeResponse = await axios.get(
+        `/api/shower-types/${configuration.showerTypeId}`
+      );
+
+      if (!showerTypeResponse.data.success) {
+        throw new Error("Failed to fetch shower type data");
+      }
+
+      const showerTypeData = showerTypeResponse.data.data;
+
+      // Fetch categories
       const categoriesResponse = await axios.get(
         `/api/categories?showerTypeId=${configuration.showerTypeId}&includeProducts=true&plumbingConfig=${configuration.plumbingConfig}`
       );
@@ -85,15 +97,28 @@ export default function DesignPage() {
 
       if (!categoriesData.success) throw new Error(categoriesData.message);
 
+      // Determine which base image to use based on plumbing config
+      let baseImage = "/images/placeholder.png";
+      const plumbingConfig = configuration.plumbingConfig?.toUpperCase();
+
+      if (plumbingConfig === "LEFT" && showerTypeData.baseImageLeft) {
+        baseImage = showerTypeData.baseImageLeft;
+      } else if (plumbingConfig === "RIGHT" && showerTypeData.baseImageRight) {
+        baseImage = showerTypeData.baseImageRight;
+      } else if (showerTypeData.baseImageLeft) {
+        // Fallback to left if right is not available
+        baseImage = showerTypeData.baseImageLeft;
+      } else if (showerTypeData.baseImageRight) {
+        // Fallback to right if left is not available
+        baseImage = showerTypeData.baseImageRight;
+      }
+
       setState((prev) => ({
         ...prev,
         configuration,
         categories: categoriesData.data,
         plumbingConfig: configuration.plumbingConfig,
-        baseImage: getBaseImage(
-          configuration.showerTypeId,
-          configuration.plumbingConfig
-        ),
+        baseImage,
       }));
     } catch (error) {
       console.error("Error loading configuration:", error);
@@ -135,18 +160,10 @@ export default function DesignPage() {
     };
   }, [loadConfiguration, checkViewport]);
 
+  // This function is no longer needed but kept for backward compatibility
   const getBaseImage = (showerTypeId: number, plumbingConfig?: string) => {
-    const showerTypeMap: { [key: number]: string } = {
-      5: "tub-to-shower",
-      6: "curved",
-      7: "neo-angle",
-      8: "alcove",
-    };
-
-    const showerType = showerTypeMap[showerTypeId] || "main";
-    const plumbing = plumbingConfig || "right";
-
-    return `/images/shower-base-main-${showerType}-${plumbing}.png`;
+    // This is now handled in loadConfiguration
+    return state.baseImage || "/images/placeholder.png";
   };
 
   const handleCategorySelect = (category: Category) => {

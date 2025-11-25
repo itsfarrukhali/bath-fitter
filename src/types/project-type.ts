@@ -5,6 +5,7 @@ export interface ProjectType {
   id: number;
   name: string;
   slug: string;
+  imageUrl?: string | null;
   createdAt?: Date;
   updatedAt?: Date;
   _count: {
@@ -16,11 +17,13 @@ export interface ProjectType {
 export interface ProjectTypeCreateData {
   name: string;
   slug: string;
+  imageUrl?: string | null;
 }
 
 export interface ProjectTypeUpdateData {
   name?: string;
   slug?: string;
+  imageUrl?: string | null;
 }
 
 export interface ProjectTypeResponse {

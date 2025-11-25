@@ -43,22 +43,25 @@ model ProjectType {
   id          Int          @id @default(autoincrement())
   name        String
   slug        String       @unique
+  imageUrl    String?      // Project type image
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @default(now()) @updatedAt
   showerTypes ShowerType[]
 }
 
 model ShowerType {
-  id            Int          @id @default(autoincrement())
-  name          String
-  slug          String       @unique
-  projectTypeId Int
-  baseImage     String?
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @default(now()) @updatedAt
-  categories    Category[]
-  projectType   ProjectType  @relation(fields: [projectTypeId], references: [id])
-  userDesigns   UserDesign[]
+  id             Int          @id @default(autoincrement())
+  name           String
+  slug           String       @unique
+  projectTypeId  Int
+  imageUrl       String?      // Shower type image
+  baseImageLeft  String?      // Base image for LEFT plumbing config
+  baseImageRight String?      // Base image for RIGHT plumbing config
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @default(now()) @updatedAt
+  categories     Category[]
+  projectType    ProjectType  @relation(fields: [projectTypeId], references: [id])
+  userDesigns    UserDesign[]
 }
 
 model TemplateCategory {

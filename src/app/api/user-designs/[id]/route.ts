@@ -36,7 +36,9 @@ export async function GET(
             id: true,
             name: true,
             slug: true,
-            baseImage: true,
+            imageUrl: true,
+            baseImageLeft: true,
+            baseImageRight: true,
             projectType: {
               select: {
                 id: true,
@@ -113,7 +115,9 @@ export async function PATCH(
             id: true,
             name: true,
             slug: true,
-            baseImage: true,
+            imageUrl: true,
+            baseImageLeft: true,
+            baseImageRight: true,
             projectType: {
               select: {
                 id: true,

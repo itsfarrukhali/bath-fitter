@@ -48,6 +48,7 @@ export const userUpdateSchema = userCreateSchema.partial();
 export const projectTypeCreateSchema = z.object({
   name: requiredString,
   slug: slugSchema,
+  imageUrl: optionalUrlSchema,
 });
 
 export const projectTypeUpdateSchema = projectTypeCreateSchema.partial();
@@ -59,7 +60,9 @@ export const showerTypeCreateSchema = z.object({
   name: requiredString,
   slug: slugSchema,
   projectTypeId: z.number().int().positive(),
-  baseImage: optionalUrlSchema,
+  imageUrl: optionalUrlSchema,
+  baseImageLeft: optionalUrlSchema,
+  baseImageRight: optionalUrlSchema,
 });
 
 export const showerTypeUpdateSchema = showerTypeCreateSchema.partial();
