@@ -35,7 +35,7 @@ export function PlumbingAwareImage({
     <Image
       src={imgSrc}
       onError={() => {
-        setImgSrc("/images/placeholder.png");
+        setImgSrc("/images/shower-base-main-tub-to-shower-right.png");
       }}
       {...props}
     />

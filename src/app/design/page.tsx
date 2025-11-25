@@ -160,11 +160,6 @@ export default function DesignPage() {
     };
   }, [loadConfiguration, checkViewport]);
 
-  // This function is no longer needed but kept for backward compatibility
-  const getBaseImage = (showerTypeId: number, plumbingConfig?: string) => {
-    // This is now handled in loadConfiguration
-    return state.baseImage || "/images/placeholder.png";
-  };
 
   const handleCategorySelect = (category: Category) => {
     setState((prev) => ({
@@ -311,10 +306,7 @@ export default function DesignPage() {
       ...loadedState,
       // Ensure we keep the current session's base image logic if needed, 
       // or update it based on the loaded configuration
-      baseImage: getBaseImage(
-        loadedState.configuration.showerTypeId || 5,
-        loadedState.configuration.plumbingConfig
-      ),
+      baseImage: state.baseImage,
     }));
     
     // Also update session storage so refresh works

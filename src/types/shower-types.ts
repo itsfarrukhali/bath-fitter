@@ -14,6 +14,7 @@ export interface ShowerType {
   projectTypeId: number;
   projectType: ProjectType;
   imageUrl?: string | null;
+  baseImage?: string | null;
   baseImageLeft?: string | null;
   baseImageRight?: string | null;
   _count: {
