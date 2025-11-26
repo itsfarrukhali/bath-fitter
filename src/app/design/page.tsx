@@ -22,7 +22,7 @@ import {
   ProductVariant,
   Subcategory,
 } from "@/types/design";
-import DesktopConfigurator from "@/components/design/desktop-configurator";
+import EnhancedDesktopConfigurator from "@/components/design/enhanced-desktop-configurator";
 import MobileConfigurator from "@/components/design/mobile-configurator";
 import { SaveDesignDialog } from "@/components/design/save-design-dialog";
 import { LoadDesignDialog } from "@/components/design/load-design-dialog";
@@ -620,7 +620,7 @@ export default function DesignPage() {
             imageLoading={imageLoading}
           />
         ) : (
-          <DesktopConfigurator
+          <EnhancedDesktopConfigurator
             state={state}
             onCategorySelect={handleCategorySelect}
             onSubcategorySelect={handleSubcategorySelect}

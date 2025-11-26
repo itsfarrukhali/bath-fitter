@@ -244,7 +244,7 @@ function PrintPageContent() {
         <PrintContentView designData={designData} imagesLoaded={imagesLoaded} />
       </div>
 
-      {/* Print Styles */}
+      {/* Print Styles - OPTIMIZED FOR SINGLE A4 PAGE */}
       <style jsx global>{`
         @media print {
           /* Reset everything for print */
@@ -266,38 +266,38 @@ function PrintPageContent() {
             background: white !important;
             color: black !important;
             font-family: Arial, Helvetica, sans-serif !important;
-            font-size: 13px !important;
-            line-height: 1.4 !important;
+            font-size: 11px !important;
+            line-height: 1.3 !important;
           }
 
           body * {
             visibility: visible !important;
           }
 
-          /* Hide non-printable elements */
+          /* Hide non-printable elements */}
           .no-print {
             display: none !important;
           }
 
-          /* Print content styling */
+          /* Print content styling - COMPACT */}
           .print-content {
             width: 100% !important;
             max-width: none !important;
             height: auto !important;
             margin: 0 !important;
-            padding: 0.3in !important;
+            padding: 0.25in !important;
             background: white !important;
             color: black !important;
             visibility: visible !important;
           }
 
-          /* Page setup - Single A4 page */
+          /* Page setup - Single A4 page with minimal margins */}
           @page {
             size: A4 portrait;
-            margin: 0.3in;
+            margin: 0.25in;
           }
 
-          /* Ensure images are visible and properly sized */
+          /* Ensure images are visible and properly sized */}
           img {
             max-width: 100% !important;
             height: auto !important;
@@ -307,7 +307,7 @@ function PrintPageContent() {
             background: transparent !important;
           }
 
-          /* Force black text */
+          /* Force black text */}
           .print-content h1,
           .print-content h2,
           .print-content h3,
@@ -317,81 +317,122 @@ function PrintPageContent() {
             color: black !important;
           }
 
-          /* Remove all borders */
+          /* Remove all borders except intentional ones */}
           .border,
-          .border-b,
-          .border-t,
-          .border-border {
+          .border-b:not(.print-spacing-header):not(.border-t) {
             border: none !important;
           }
 
-          /* Remove card backgrounds and borders */
+          /* Keep header and footer borders */}
+          .print-spacing-header {
+            border-bottom: 1px solid #ddd !important;
+            padding-bottom: 6px !important;
+            margin-bottom: 8px !important;
+          }
+
+          .border-t.border-border {
+            border-top: 1px solid #ddd !important;
+            padding-top: 6px !important;
+          }
+
+          /* Remove card backgrounds */}
           .bg-background,
           .bg-muted,
           .bg-card,
-          [class*="bg-"] {
+          [class*="bg-"]:not(.bg-primary):not(.bg-muted\/10) {
             background: white !important;
           }
 
-          /* Color circles - FIXED for print with inline styles */
+          .bg-muted\/10,
+          .bg-muted\/20 {
+            background: #f5f5f5 !important;
+          }
+
+          /* Color circles - FIXED for print */}
           .color-circle {
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
             color-adjust: exact !important;
             background-color: inherit !important;
-            border: 2px solid #333 !important;
+            border: 1.5px solid #333 !important;
             display: inline-block !important;
             border-radius: 50% !important;
           }
 
-          /* Text sizes for print - LARGER */
+          /* Text sizes for print - COMPACT */}
           .print-header-title {
-            font-size: 28px !important;
+            font-size: 22px !important;
             font-weight: bold !important;
-            margin-bottom: 12px !important;
+            margin-bottom: 6px !important;
           }
 
           .print-section-title {
-            font-size: 20px !important;
+            font-size: 16px !important;
             font-weight: 600 !important;
-            margin-bottom: 16px !important;
+            margin-bottom: 6px !important;
           }
 
           .print-product-name {
-            font-size: 16px !important;
+            font-size: 12px !important;
             font-weight: 600 !important;
+            line-height: 1.2 !important;
           }
 
           .print-product-details {
-            font-size: 14px !important;
+            font-size: 10px !important;
           }
 
           .text-xs {
-            font-size: 11px !important;
+            font-size: 9px !important;
           }
           .text-sm {
-            font-size: 13px !important;
+            font-size: 10px !important;
           }
           .text-base {
+            font-size: 11px !important;
+          }
+          .text-lg {
             font-size: 14px !important;
           }
+          .text-3xl {
+            font-size: 22px !important;
+          }
 
-          /* Spacing adjustments */
+          /* Spacing adjustments - COMPACT */}
           .print-spacing-header {
-            margin-bottom: 24px !important;
-            padding-bottom: 16px !important;
+            margin-bottom: 8px !important;
           }
 
           .print-spacing-section {
-            margin-bottom: 24px !important;
+            margin-bottom: 8px !important;
           }
 
           .print-spacing-item {
-            margin-bottom: 16px !important;
-            padding: 12px !important;
+            margin-bottom: 4px !important;
+            padding: 6px !important;
           }
 
-          /* Prevent page breaks */
+          .space-y-4 > * + * {
+            margin-top: 8px !important;
+          }
+
+          .space-y-2 > * + * {
+            margin-top: 4px !important;
+          }
+
+          .space-y-1 > * + * {
+            margin-top: 2px !important;
+          }
+
+          .gap-2 {
+            gap: 4px !important;
+          }
+
+          .gap-4 {
+            gap: 6px !important;
+          }
+
+          /* Prevent page breaks */}
           .print-content {
             page-break-inside: avoid !important;
           }
@@ -402,24 +443,60 @@ function PrintPageContent() {
             page-break-before: avoid !important;
           }
 
-          /* Ensure single page */
+          /* Ensure single page */}
           body,
           .print-content {
             height: auto !important;
             overflow: visible !important;
           }
 
-          /* Badge styling for print */
+          /* Badge styling for print - COMPACT */}
           .badge-print {
             background: #e5e7eb !important;
             color: black !important;
-            padding: 4px 12px !important;
-            border-radius: 4px !important;
-            font-size: 12px !important;
+            padding: 2px 8px !important;
+            border-radius: 3px !important;
+            font-size: 9px !important;
+            display: inline-block !important;
+          }
+
+          /* Grid layout for products */}
+          .print-two-columns {
+            display: grid !important;
+            grid-template-columns: 1fr 1fr !important;
+            gap: 4px !important;
+          }
+
+          /* Line clamp */}
+          .line-clamp-1 {
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+            white-space: nowrap !important;
+          }
+
+          /* Compact padding */}
+          .p-2 {
+            padding: 4px !important;
+          }
+
+          .pb-2 {
+            padding-bottom: 4px !important;
+          }
+
+          .pt-2 {
+            padding-top: 4px !important;
+          }
+
+          .mb-2 {
+            margin-bottom: 4px !important;
+          }
+
+          .ml-8 {
+            margin-left: 16px !important;
           }
         }
 
-        /* Screen styles */
+        /* Screen styles */}
         @media screen {
           .print-content {
             max-width: 210mm;
@@ -453,7 +530,7 @@ export default function PrintPage() {
   );
 }
 
-// Print Content Component - REDESIGNED
+// Print Content Component - OPTIMIZED FOR SINGLE A4 PAGE
 function PrintContentView({
   designData,
   imagesLoaded,
@@ -464,37 +541,37 @@ function PrintContentView({
   const productCount = Object.keys(designData.selectedProducts).length;
 
   return (
-    <div className="mx-auto bg-background print:bg-white space-y-6 print-section">
-      {/* Header - LARGER */}
-      <div className="text-center border-b border-border pb-4 print-spacing-header">
-        <h1 className="text-4xl font-bold text-foreground mb-3 print-header-title">
+    <div className="mx-auto bg-background print:bg-white space-y-4 print-section">
+      {/* Header - COMPACT */}
+      <div className="text-center border-b border-border pb-2 print-spacing-header">
+        <h1 className="text-3xl font-bold text-foreground mb-2 print-header-title">
           Shower Design Specification
         </h1>
-        <div className="flex flex-wrap justify-center gap-4 text-sm">
-          <Badge variant="secondary" className="text-sm badge-print px-4 py-1">
-            Type: {designData.configuration.showerTypeName}
+        <div className="flex flex-wrap justify-center gap-2 text-xs">
+          <Badge variant="secondary" className="text-xs badge-print px-3 py-0.5">
+            {designData.configuration.showerTypeName}
           </Badge>
-          <Badge variant="secondary" className="text-sm badge-print px-4 py-1">
-            Plumbing: {designData.configuration.plumbingConfig}
+          <Badge variant="secondary" className="text-xs badge-print px-3 py-0.5">
+            {designData.configuration.plumbingConfig} Plumbing
           </Badge>
-          <Badge variant="secondary" className="text-sm badge-print px-4 py-1">
-            Date: {new Date().toLocaleDateString()}
+          <Badge variant="secondary" className="text-xs badge-print px-3 py-0.5">
+            {new Date().toLocaleDateString()}
           </Badge>
         </div>
       </div>
 
-      {/* Design Overview - LARGER IMAGE */}
-      <div className="space-y-3 print-spacing-section">
-        <h2 className="text-2xl font-semibold text-center text-foreground print-section-title">
-          Design Overview
+      {/* Design Overview - SMALLER IMAGE */}
+      <div className="space-y-2 print-spacing-section">
+        <h2 className="text-lg font-semibold text-center text-foreground print-section-title">
+          Design Preview
         </h2>
         <div className="flex justify-center">
-          <div className="rounded bg-muted/20 p-3">
+          <div className="rounded bg-muted/20 p-2">
             <div
               className="relative"
               style={{
-                width: "400px",
-                height: "400px",
+                width: "280px",
+                height: "280px",
                 maxWidth: "100%",
               }}
             >
@@ -521,7 +598,7 @@ function PrintContentView({
                         src={imageUrl}
                         alt={selectedProduct.product.name}
                         fill
-                        className="object-contain p-4"
+                        className="object-contain p-3"
                         style={{
                           zIndex: selectedProduct.product?.z_index || 10,
                         }}
@@ -534,68 +611,56 @@ function PrintContentView({
         </div>
       </div>
 
-      {/* Selected Products - 2 COLUMN LAYOUT */}
-      <div className="space-y-3 print-spacing-section">
-        <h2 className="text-2xl font-semibold text-center text-foreground print-section-title">
+      {/* Selected Products - COMPACT 2 COLUMN LAYOUT */}
+      <div className="space-y-2 print-spacing-section">
+        <h2 className="text-lg font-semibold text-center text-foreground print-section-title">
           Selected Products ({productCount})
         </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 print-two-columns">
+        <div className="grid grid-cols-2 gap-2 print-two-columns">
           {Object.entries(designData.selectedProducts).map(
             ([key, selectedProduct], index) => (
               <div
                 key={key}
-                className="rounded p-4 space-y-3 bg-muted/10 print-spacing-item"
+                className="rounded p-2 space-y-1 bg-muted/10 print-spacing-item"
               >
-                <div className="flex items-center gap-4">
-                  <Badge className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold bg-primary text-primary-foreground">
+                <div className="flex items-center gap-2">
+                  <Badge className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold bg-primary text-primary-foreground shrink-0">
                     {index + 1}
                   </Badge>
-                  <h3 className="font-semibold text-lg text-foreground flex-1 print-product-name">
+                  <h3 className="font-semibold text-sm text-foreground flex-1 print-product-name line-clamp-1">
                     {selectedProduct.product?.name}
                   </h3>
                 </div>
 
-                {/* Color Display - ENHANCED with SVG fallback */}
-                <div className="flex items-center gap-3">
-                  <span className="text-base text-muted-foreground font-medium print-product-details">
-                    Color:
+                {/* Color Display - COMPACT */}
+                <div className="flex items-center gap-2 ml-8">
+                  <svg
+                    width="16"
+                    height="16"
+                    style={{ display: "inline-block", flexShrink: 0 }}
+                  >
+                    <circle
+                      cx="8"
+                      cy="8"
+                      r="6"
+                      fill={selectedProduct.variant?.colorCode || "#cccccc"}
+                      stroke="#333"
+                      strokeWidth="1.5"
+                    />
+                  </svg>
+                  <span className="text-xs text-muted-foreground print-product-details truncate">
+                    {selectedProduct.variant?.colorName || "Default"}
                   </span>
-                  <div className="flex items-center gap-3">
-                    {/* SVG Circle for better print compatibility */}
-                    <svg
-                      width="24"
-                      height="24"
-                      style={{ display: "inline-block" }}
-                    >
-                      <circle
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        fill={selectedProduct.variant?.colorCode || "#cccccc"}
-                        stroke="#333"
-                        strokeWidth="2"
-                      />
-                    </svg>
-                    <span className="text-base text-muted-foreground print-product-details">
-                      {selectedProduct.variant?.colorName || "Default"}
-                    </span>
-                  </div>
                 </div>
-
-                {selectedProduct.product?.description && (
-                  <p className="text-sm text-muted-foreground leading-relaxed print-product-details">
-                    {selectedProduct.product.description}
-                  </p>
-                )}
               </div>
             )
           )}
         </div>
       </div>
 
-      {/* Footer */}
-      <div className="pt-6 text-center">
-        <p className="text-base text-muted-foreground font-medium">
+      {/* Footer - COMPACT */}
+      <div className="pt-2 text-center border-t border-border">
+        <p className="text-xs text-muted-foreground font-medium">
           Home Care - We Make Your Dreams Into Reality
         </p>
       </div>

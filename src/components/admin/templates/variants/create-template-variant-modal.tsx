@@ -59,63 +59,71 @@ export default function CreateTemplateVariantModal({
     }
   }, [open]);
 
-  const handleImageUpload = async (file: File) => {
-    setImageUploading(true);
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
+const handleImageUpload = async (file: File) => {
+  setImageUploading(true);
+  try {
+    const formData = new FormData();
+    formData.append("file", file);
 
-      const folder = `templates/products/${templateProductId}/variants`;
-      formData.append("folder", folder);
+    const folder = `templates/products/${templateProductId}/variants`;
+    formData.append("folder", folder);
 
-      const response = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      });
+    const response = await axios.post("/api/upload", formData);
 
-      if (!response.ok) {
-        throw new Error(`Upload failed with status: ${response.status}`);
-      }
-
-      const data = await response.json();
-
-      if (data.success) {
-        setImageUrl(data.imageUrl);
-        setPublicId(data.publicId);
-        toast.success("Variant image uploaded successfully");
-      } else {
-        toast.error(data.message || "Failed to upload image");
-      }
-    } catch (error) {
-      console.error("Upload error:", error);
-      toast.error("Failed to upload image");
-    } finally {
-      setImageUploading(false);
+    if (!response.data.success) {
+      throw new Error(response.data.message);
     }
-  };
+
+    const data = response.data;
+
+    console.log("Upload response:", data);
+
+    if (data.success) {
+      // CORRECTED: Access the imageUrl from data.data.imageUrl
+      const uploadedImageUrl = data.data.imageUrl;
+      const uploadedPublicId = data.data.publicId;
+
+      console.log("Setting image URL:", uploadedImageUrl);
+      console.log("Setting public ID:", uploadedPublicId);
+
+      // Set the states with the correct values
+      setImageUrl(uploadedImageUrl);
+      setPublicId(uploadedPublicId);
+      
+      toast.success("Variant image uploaded successfully");
+    }
+  } catch (error) {
+    console.error("Upload error:", error);
+    toast.error("Failed to upload image");
+  } finally {
+    setImageUploading(false);
+  }
+};
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!colorName.trim()) {
-      toast.error("Color name is required");
-      return;
-    }
-    if (!imageUrl.trim()) {
-      toast.error("Variant image is required");
-      return;
-    }
+  if (!colorName?.trim()) {
+    toast.error("Color name is required");
+    return;
+  }
+  if (!imageUrl?.trim()) {
+    toast.error("Variant image is required");
+    return;
+  }
 
     setLoading(true);
     try {
-      const variantData = {
-        colorName: colorName.trim(),
-        colorCode: colorCode.trim() || null,
-        imageUrl: imageUrl.trim(),
-        publicId: publicId,
-        templateProductId,
-        plumbingConfig,
+    const variantData = {
+      colorName: colorName.trim(),
+      colorCode: colorCode?.trim() || null, // Use optional chaining
+      imageUrl: imageUrl.trim(),
+      publicId: publicId || null, // Handle null case
+      templateProductId,
+      plumbingConfig,
       };
+
+      console.log("Submitting variant data:", variantData);
 
       const { data } = await axios.post("/api/template-variants", variantData);
 
@@ -139,7 +147,7 @@ export default function CreateTemplateVariantModal({
     }
   };
 
-  const isFormValid = colorName.trim() && imageUrl.trim();
+const isFormValid = colorName?.trim() && imageUrl?.trim();
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>

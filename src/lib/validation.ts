@@ -13,8 +13,9 @@ export const requiredString = z
 
 export const optionalString = z
   .string()
+  .nullable()
   .optional()
-  .transform((val) => val?.trim());
+  .transform((val) => val?.trim() || undefined);
 
 // Slug validation (lowercase, alphanumeric, hyphens)
 export const slugSchema = z
@@ -41,8 +42,9 @@ export const urlSchema = z
 export const optionalUrlSchema = z
   .string()
   .url("Invalid URL")
+  .nullable()
   .optional()
-  .transform((val) => val?.trim());
+  .transform((val) => val?.trim() || undefined);
 
 // Phone number validation (basic)
 export const phoneSchema = z
@@ -76,8 +78,9 @@ export const plumbingConfigSchema = z
 export const colorCodeSchema = z
   .string()
   .regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, "Invalid hex color code")
+  .nullable()
   .optional()
-  .transform((val) => val?.toUpperCase());
+  .transform((val) => val?.toUpperCase() || undefined);
 
 // Positive integer validation
 export const positiveIntSchema = z

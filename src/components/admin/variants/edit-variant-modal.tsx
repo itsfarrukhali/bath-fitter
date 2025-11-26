@@ -40,8 +40,10 @@ interface Props {
 
 interface UploadResponse {
   success: boolean;
-  imageUrl?: string;
-  publicId?: string;
+  data?: {
+    imageUrl: string;
+    publicId: string;
+  };
   message?: string;
 }
 
@@ -82,11 +84,12 @@ export default function EditVariantModal({
         }
       );
 
-      if (response.data.success && response.data.imageUrl) {
-        setImageUrl(response.data.imageUrl);
+      // The API returns the data wrapped in a 'data' property
+      if (response.data.success && response.data.data?.imageUrl) {
+        setImageUrl(response.data.data.imageUrl);
         toast.success("Variant image uploaded successfully");
       } else {
-        throw new Error(response.data.message || "Failed to upload image");
+        toast.error(response.data.message || "Failed to upload image");
       }
     } catch (error) {
       console.error("Upload error:", error);

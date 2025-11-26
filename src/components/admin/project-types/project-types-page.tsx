@@ -3,7 +3,7 @@
 
 import { useEffect, useState } from "react";
 import axios, { AxiosError } from "axios";
-import { FolderTree, Building } from "lucide-react";
+import { FolderTree, Building, ImageIcon } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/pagination";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import Image from "next/image";
 
 import type {
   ProjectType,
@@ -165,6 +166,23 @@ export default function ProjectTypesPage() {
                 </div>
               </CardHeader>
               <CardContent className="p-4">
+                {/* Image Thumbnail */}
+                {projectType.imageUrl ? (
+                  <div className="mb-4 relative w-full h-40 rounded-md overflow-hidden bg-muted">
+                    <Image
+                      src={projectType.imageUrl}
+                      alt={projectType.name}
+                      fill
+                      className="object-cover"
+                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                    />
+                  </div>
+                ) : (
+                  <div className="mb-4 w-full h-40 rounded-md bg-muted flex items-center justify-center">
+                    <ImageIcon className="h-12 w-12 text-muted-foreground/30" />
+                  </div>
+                )}
+
                 <div className="mb-4">
                   <div className="flex items-center justify-between text-sm mb-2">
                     <span className="text-muted-foreground">Slug</span>

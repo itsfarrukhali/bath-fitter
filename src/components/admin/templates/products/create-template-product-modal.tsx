@@ -36,8 +36,10 @@ interface Props {
 
 interface UploadResponse {
   success: boolean;
-  imageUrl?: string;
-  publicId?: string;
+  data?: {
+    imageUrl: string;
+    publicId: string;
+  };
   message?: string;
 }
 
@@ -102,11 +104,12 @@ export default function CreateTemplateProductModal({
 
       console.log("Upload response:", response.data);
 
-      if (response.data.success && response.data.imageUrl) {
-        setThumbnailUrl(response.data.imageUrl);
+      // The API returns the data wrapped in a 'data' property
+      if (response.data.success && response.data.data?.imageUrl) {
+        setThumbnailUrl(response.data.data.imageUrl);
         toast.success("Product thumbnail uploaded successfully");
       } else {
-        throw new Error(response.data.message || "Failed to upload thumbnail");
+        toast.error(response.data.message || "Failed to upload thumbnail");
       }
     } catch (error) {
       console.error("Upload error:", error);

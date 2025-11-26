@@ -115,14 +115,15 @@ export default function TemplateDetailPage() {
 
     const totalVariants =
       template.templateProducts.reduce(
-        (total, product) => total + product.templateVariants.length,
+        (total, product) => total + (product.templateVariants?.length || 0),
         0
       ) +
       template.templateSubcategories.reduce(
         (total, sub) =>
           total +
           sub.templateProducts.reduce(
-            (subTotal, product) => subTotal + product.templateVariants.length,
+            (subTotal, product) =>
+              subTotal + (product.templateVariants?.length || 0),
             0
           ),
         0
@@ -443,7 +444,7 @@ export default function TemplateDetailPage() {
                       <Package className="h-4 w-4" />
                       {product.name}
                     </span>
-                    <Badge>{product.templateVariants.length} variants</Badge>
+                    <Badge>{product.templateVariants?.length || 0} variants</Badge>
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -464,13 +465,13 @@ export default function TemplateDetailPage() {
                     />
                   </div>
 
-                  {product.templateVariants.length === 0 ? (
+                  {product.templateVariants?.length === 0 ? (
                     <p className="text-sm text-muted-foreground text-center py-4">
                       No variants yet
                     </p>
                   ) : (
                     <div className="space-y-2">
-                      {product.templateVariants.map((variant) => (
+                      {product.templateVariants?.map((variant) => (
                         <div
                           key={variant.id}
                           className="flex items-center justify-between text-sm p-2 bg-muted/50 rounded"

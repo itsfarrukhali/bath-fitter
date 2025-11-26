@@ -25,11 +25,20 @@ export function PlumbingAwareImage({
     ? transformCloudinaryUrl(src, plumbingConfig, variantPlumbingConfig)
     : src;
 
-  const [imgSrc, setImgSrc] = useState(imageUrl || "/images/placeholder.png");
+  // If unoptimized is true, we should ensure Cloudinary optimizes the image
+  // since Next.js won't be doing it
+  const finalUrl =
+    props.unoptimized &&
+    imageUrl?.includes("res.cloudinary.com") &&
+    !imageUrl.includes("q_auto")
+      ? imageUrl.replace("/upload/", "/upload/q_auto,f_auto/")
+      : imageUrl;
+
+  const [imgSrc, setImgSrc] = useState(finalUrl || "/images/placeholder.png");
 
   useEffect(() => {
-    setImgSrc(imageUrl || "/images/placeholder.png");
-  }, [imageUrl]);
+    setImgSrc(finalUrl || "/images/placeholder.png");
+  }, [finalUrl]);
 
   return (
     <Image

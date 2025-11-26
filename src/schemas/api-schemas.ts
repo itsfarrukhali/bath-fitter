@@ -101,8 +101,8 @@ export const templateProductCreateSchema = z.object({
   slug: slugSchema,
   description: optionalString,
   thumbnailUrl: optionalUrlSchema,
-  templateCategoryId: z.number().int().positive().optional(),
-  templateSubcategoryId: z.number().int().positive().optional(),
+  templateCategoryId: z.number().int().positive().nullable().optional(),
+  templateSubcategoryId: z.number().int().positive().nullable().optional(),
 });
 
 export const templateProductUpdateSchema =
@@ -131,7 +131,7 @@ export const categoryCreateSchema = z.object({
   slug: slugSchema,
   hasSubcategories: z.boolean().optional().default(false),
   showerTypeId: z.number().int().positive(),
-  templateId: z.number().int().positive().optional(),
+  templateId: z.number().int().positive().nullable().optional(),
   z_index: zIndexSchema,
   plumbingConfig: plumbingConfigSchema,
 });
@@ -145,7 +145,7 @@ export const subcategoryCreateSchema = z.object({
   name: requiredString,
   slug: slugSchema,
   categoryId: z.number().int().positive(),
-  templateId: z.number().int().positive().optional(),
+  templateId: z.number().int().positive().nullable().optional(),
   z_index: zIndexSchema,
   plumbingConfig: plumbingConfigSchema,
 });
@@ -161,8 +161,8 @@ export const productCreateSchema = z.object({
   description: optionalString,
   thumbnailUrl: optionalUrlSchema,
   categoryId: z.number().int().positive(),
-  subcategoryId: z.number().int().positive().optional(),
-  templateId: z.number().int().positive().optional(),
+  subcategoryId: z.number().int().positive().nullable().optional(),
+  templateId: z.number().int().positive().nullable().optional(),
   z_index: zIndexSchema,
   plumbingConfig: plumbingConfigSchema,
 });
@@ -179,7 +179,7 @@ export const productVariantCreateSchema = z.object({
   publicId: optionalString,
   productId: z.number().int().positive(),
   plumbing_config: plumbingConfigSchema,
-  templateVariantId: z.number().int().positive().optional(),
+  templateVariantId: z.number().int().positive().nullable().optional(),
 });
 
 export const productVariantUpdateSchema = productVariantCreateSchema.partial();
