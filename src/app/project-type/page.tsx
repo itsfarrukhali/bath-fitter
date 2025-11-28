@@ -81,14 +81,14 @@ export default function ProjectTypePage() {
       name: "Showers",
       slug: "shower",
       description: "Create your ideal shower space",
-      baseImage: "/images/shower.png",
+      imageUrl: "/images/shower.png",
     },
     {
       id: 2,
       name: "Load Existing Project",
       slug: "existing",
       description: "Continue working on a saved design",
-      baseImage: "/images/existing-project.jpg",
+      imageUrl: "/images/existing-project.jpg",
     },
   ];
 
@@ -149,7 +149,7 @@ export default function ProjectTypePage() {
                 <div className="relative aspect-[3/4] w-full overflow-hidden">
                   <Image
                     src={
-                      projectType.baseImage || `/images/${projectType.slug}.png`
+                      projectType.imageUrl || `/images/${projectType.slug}.png`
                     }
                     alt={projectType.name}
                     fill

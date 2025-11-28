@@ -3,6 +3,7 @@ import * as React from "react";
 import {
   Folder,
   FolderTree,
+  Home,
   LayoutTemplate,
   LogOut,
   Network,
@@ -27,6 +28,7 @@ import { useTheme } from "next-themes";
 
 // Nav config with lucide icons
 const adminNav = [
+  { title: "Dashboard", url: "/admin", icon: Home },
   { title: "Project Types", url: "/admin/project-types", icon: Network },
   { title: "Shower Types", url: "/admin/shower-types", icon: ShowerHead },
   { title: "Templates", url: "/admin/templates", icon: LayoutTemplate },

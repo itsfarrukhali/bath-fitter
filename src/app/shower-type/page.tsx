@@ -108,7 +108,7 @@ export default function ShowerTypePage() {
       name: "Tub to Shower",
       slug: "tub-to-shower",
       description: "Convert your bathtub into a spacious shower",
-      baseImage: "/images/tub-to-shower.png",
+      imageUrl: "/images/tub-to-shower.png",
       projectTypeId: 1,
       projectType: { id: 1, name: "Showers", slug: "shower" },
     },
@@ -117,7 +117,7 @@ export default function ShowerTypePage() {
       name: "Curved Shower",
       slug: "curved",
       description: "Elegant curved design for modern bathrooms",
-      baseImage: "/images/curved.png",
+      imageUrl: "/images/curved.png",
       projectTypeId: 1,
       projectType: { id: 1, name: "Showers", slug: "shower" },
     },
@@ -126,7 +126,7 @@ export default function ShowerTypePage() {
       name: "Alcove Shower",
       slug: "alcove",
       description: "Space-efficient three-wall enclosure",
-      baseImage: "/images/alcove.png",
+      imageUrl: "/images/alcove.png",
       projectTypeId: 1,
       projectType: { id: 1, name: "Showers", slug: "shower" },
     },
@@ -135,7 +135,7 @@ export default function ShowerTypePage() {
       name: "Neo Angle",
       slug: "neo-angle",
       description: "Space-efficient three-wall enclosure",
-      baseImage: "/images/neo-angle.png",
+      imageUrl: "/images/neo-angle.png",
       projectTypeId: 1,
       projectType: { id: 1, name: "Showers", slug: "shower" },
     },
@@ -216,7 +216,7 @@ export default function ShowerTypePage() {
                 <div className="relative aspect-[3/4] w-full overflow-hidden">
                   <Image
                     src={
-                      showerType.baseImage || `/images/${showerType.slug}.png`
+                      showerType.imageUrl || `/images/${showerType.slug}.png`
                     }
                     alt={showerType.name}
                     fill

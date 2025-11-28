@@ -4,7 +4,7 @@ export interface ProjectType {
   name: string;
   slug: string;
   description?: string;
-  baseImage?: string;
+  imageUrl?: string;
 }
 
 export interface ShowerType {
@@ -12,7 +12,9 @@ export interface ShowerType {
   name: string;
   slug: string;
   description?: string;
-  baseImage?: string;
+  imageUrl?: string;
+  baseImageLeft?: string;
+  baseImageRight?: string;
   projectTypeId: number;
   projectType: ProjectType;
 }

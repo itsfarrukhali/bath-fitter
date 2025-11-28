@@ -184,13 +184,14 @@ export default function EditProductModal({
         description: description.trim() || null,
         thumbnailUrl: thumbnailUrl.trim() || null,
         categoryId: parseInt(selectedCategoryId),
-        subcategoryId: selectedSubcategoryId
-          ? parseInt(selectedSubcategoryId)
-          : undefined,
+        subcategoryId:
+          selectedSubcategoryId !== "none" && selectedSubcategoryId
+            ? parseInt(selectedSubcategoryId)
+            : null,
         z_index: zIndex === "" ? null : zIndex,
       };
 
-      const { data } = await axios.put(
+      const { data } = await axios.patch(
         `/api/products/${product.id}`,
         productData
       );
