@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, X, Search, Filter, ChevronDown, ChevronUp, Grid3x3, List } from "lucide-react";
+import { Loader2, X, Search, ChevronDown, ChevronUp, Grid3x3, List } from "lucide-react";
 import {
   ConfiguratorState,
   Category,
